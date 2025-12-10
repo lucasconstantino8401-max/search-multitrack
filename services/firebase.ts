@@ -1,13 +1,9 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, type User as FirebaseUser } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import type { User } from '../types';
 
 // ------------------------------------------------------------------
 // CONFIGURAÇÃO DO FIREBASE
-// 1. Crie um projeto no console.firebase.google.com
-// 2. Vá em Authentication > Sign-in method > Habilite o Google
-// 3. Vá em Project Settings > Geral > Web Apps > Copie a config SDK
-// 4. Substitua os valores abaixo:
 // ------------------------------------------------------------------
 const firebaseConfig = {
   apiKey: "AIzaSyC3do0sfTr8za_FtJhuvdDRlSElQRQCqbs",
@@ -19,48 +15,48 @@ const firebaseConfig = {
   measurementId: "G-ZEBZSHTPFB"
 };
 
-
 // --- SINGLETONS ---
-let auth: any;
-let googleProvider: any;
+let auth: any = undefined;
+let googleProvider: any = undefined;
 let isConfigured = false;
 
-// Inicialização Segura
+// Inicialização
 try {
-    // Verificamos se a config foi alterada do placeholder padrão
-    if (firebaseConfig.apiKey !== "API_KEY_AQUI") {
-        const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        googleProvider = new GoogleAuthProvider();
-        isConfigured = true;
-        console.log("Firebase configurado com sucesso.");
-    } else {
-        console.log("Firebase executando em modo Demonstração (Sem chaves configuradas).");
-    }
+    // Garante que o app só é inicializado uma vez
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    
+    // Inicializa Auth
+    auth = getAuth(app);
+    
+    googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({
+        prompt: 'select_account'
+    });
+    
+    isConfigured = true;
+    console.log("Firebase initialized successfully.");
 } catch (error) {
-    console.warn("Erro ao inicializar Firebase:", error);
+    console.error("Firebase Initialization Error:", error);
+    isConfigured = false;
 }
 
 /**
  * Realiza o login com Google.
- * Se o Firebase não estiver configurado, realiza um login simulado (Mock).
  */
 export const signInWithGoogle = async (): Promise<User> => {
-    // MODO DEMONSTRAÇÃO / FALLBACK
-    if (!isConfigured) {
-        console.warn("Firebase não configurado. Usando Mock de Login.");
+    // MODO DEMONSTRAÇÃO / FALLBACK se a configuração falhar
+    if (!isConfigured || !auth) {
+        console.warn("Firebase failed to initialize. Using Mock Login.");
         return new Promise((resolve) => {
              setTimeout(() => {
-                 // Retorna um usuário Admin Fake para testes
-                 // DICA: Adicione 'admin@searchmultitracks.com' no ADMIN_EMAILS em MainApp.tsx
                  const mockUser: User = {
                      uid: 'mock-admin-' + Date.now(),
                      email: 'admin@searchmultitracks.com', 
-                     displayName: 'Admin (Modo Teste)',
+                     displayName: 'Admin (Mock)',
                      photoURL: ''
                  };
                  resolve(mockUser);
-             }, 1200);
+             }, 1000);
         });
     }
 
@@ -75,8 +71,15 @@ export const signInWithGoogle = async (): Promise<User> => {
             displayName: fbUser.displayName || 'Usuário',
             photoURL: fbUser.photoURL || ''
         };
-    } catch (error) {
-        console.error("Erro no Auth Google:", error);
+    } catch (error: any) {
+        console.error("Google Auth Error:", error);
+        
+        if (error.code === 'auth/unauthorized-domain') {
+            throw new Error(`Domínio não autorizado: ${window.location.hostname}. Adicione-o no Console Firebase.`);
+        }
+        if (error.code === 'auth/popup-closed-by-user') {
+            throw new Error("O popup de login foi fechado antes da conclusão.");
+        }
         throw error;
     }
 };
@@ -86,6 +89,10 @@ export const signInWithGoogle = async (): Promise<User> => {
  */
 export const logoutFirebase = async () => {
     if (isConfigured && auth) {
-        await firebaseSignOut(auth);
+        try {
+            await firebaseSignOut(auth);
+        } catch (e) {
+            console.warn("Logout error:", e);
+        }
     }
 };

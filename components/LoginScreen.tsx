@@ -13,16 +13,23 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     setErrorMsg(null);
     
     try {
-        // Tenta login real (ou mock se não configurado)
         const user = await signInWithGoogle();
-        
-        // Salva na sessão local (localStorage)
         saveUserSession(user);
-        
         onLogin(user);
     } catch (error: any) {
-        console.error(error);
-        setErrorMsg("Falha ao conectar com Google. Tente novamente.");
+        console.error("Login Failed:", error);
+        
+        // Extract readable message
+        let message = "Falha ao conectar com Google.";
+        
+        if (error.message) {
+            // Use custom error messages thrown by service or raw firebase message
+            message = error.message; 
+        } else if (error.code) {
+             message = `Erro: ${error.code}`;
+        }
+
+        setErrorMsg(message);
         setLoading(false);
     }
   };
@@ -79,14 +86,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </button>
         
         {errorMsg && (
-            <div className="mt-4 text-center text-red-500 text-xs bg-red-500/10 p-2 rounded-lg border border-red-500/20">
-                {errorMsg}
+            <div className="mt-6 mx-auto w-full max-w-sm text-center">
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-lg break-words">
+                   {errorMsg}
+                </div>
+                {errorMsg.includes('Authorized Domains') && (
+                    <p className="text-[10px] text-zinc-500 mt-2">
+                        Adicione o domínio atual ao Firebase Console para permitir o login.
+                    </p>
+                )}
             </div>
         )}
         
         <div className="mt-8 flex justify-between items-center text-[10px] text-zinc-600 uppercase tracking-widest font-bold border-t border-white/5 pt-4">
             <span>Secure Server</span>
-            <span>V 2.1.0</span>
+            <span>V 2.1.1</span>
         </div>
       </div>
     </div>
