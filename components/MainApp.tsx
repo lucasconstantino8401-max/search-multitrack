@@ -231,6 +231,7 @@ const CATEGORIES = ["Todos", "Worship", "Rock", "Pop", "Instrumental", "Ao Vivo"
 
 const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState(''); // New state for submitted search
   const [tracks, setTracks] = useState<Track[]>([]);
   const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
@@ -244,8 +245,8 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
   // Check Permissions
   const isAdmin = ADMIN_EMAILS.includes(user.email);
 
+  // 1. Setup Data Listener (Runs once on mount)
   useEffect(() => {
-    // Inscreve-se no Firestore para receber atualizações em tempo real
     setLoadingData(true);
     const unsubscribe = listenToTracks((allTracks) => {
         setTracks(allTracks);
@@ -267,49 +268,47 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
             .slice(0, 32); 
         setRecentTracks(sortedByDate);
         setLoadingData(false);
-
-        // Se estiver pesquisando, re-filtrar
-        if (searchTerm) {
-            const term = normalizeText(searchTerm);
-            const results = allTracks.filter(t => {
-                const title = normalizeText(t.title || '');
-                const artist = normalizeText(t.artist || '');
-                return title.includes(term) || artist.includes(term);
-            });
-            setFilteredTracks(results);
-        }
     });
 
     return () => unsubscribe();
-  }, [searchTerm]); // Re-run filter if search term changes (handled inside subscription for simplicity if data updates)
+  }, []);
+
+  // 2. Filter Logic (Runs when tracks update OR activeSearchTerm changes)
+  useEffect(() => {
+      if (activeSearchTerm) {
+          const term = normalizeText(activeSearchTerm);
+          const results = tracks.filter(t => {
+              const title = normalizeText(t.title || '');
+              const artist = normalizeText(t.artist || '');
+              return title.includes(term) || artist.includes(term);
+          });
+          setFilteredTracks(results);
+          setSearched(true);
+      } else {
+          // If active search is cleared, go back to home
+          setFilteredTracks([]);
+          setSearched(false);
+      }
+  }, [tracks, activeSearchTerm]);
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
     const cleanSearchTerm = searchTerm.trim();
     if (!cleanSearchTerm) {
-        setSearched(false);
-        setFilteredTracks([]);
+        setActiveSearchTerm('');
         return;
     }
-
-    const term = normalizeText(cleanSearchTerm);
-    const results = tracks.filter(t => {
-        const title = normalizeText(t.title || '');
-        const artist = normalizeText(t.artist || '');
-        return title.includes(term) || artist.includes(term);
-    });
-
-    setFilteredTracks(results);
-    setSearched(true);
+    // Set the active term to trigger the filter effect
+    setActiveSearchTerm(cleanSearchTerm);
   };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setSearchTerm(value);
+      // Optional: Clear results immediately if input is cleared
       if (value === '') {
-          setSearched(false);
-          setFilteredTracks([]);
+          setActiveSearchTerm('');
       }
   };
 
@@ -333,8 +332,7 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
 
   const clearSearch = () => {
     setSearchTerm('');
-    setSearched(false);
-    setFilteredTracks([]);
+    setActiveSearchTerm('');
     setActiveCategory("Todos");
   };
 

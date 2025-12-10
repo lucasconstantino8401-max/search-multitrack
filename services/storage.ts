@@ -42,13 +42,13 @@ export const listenToTracks = (callback: (tracks: Track[]) => void) => {
 export const saveTrackRemote = async (track: Partial<Track>): Promise<void> => {
   if (!db) throw new Error("Database not initialized");
 
-  const id = track.id || Date.now().toString();
-  // Compat Syntax: db.collection(...).doc(...)
+  // Generate ID if not present
+  const id = track.id || db.collection(TRACKS_COLLECTION).doc().id;
+  
+  // Reference
   const trackRef = db.collection(TRACKS_COLLECTION).doc(id);
 
-  // Se for nova, preenche defaults
-  // Se for update, mescla
-  
+  // Default values for a new track
   const defaults = {
     id: id,
     title: 'Sem título',
@@ -60,12 +60,23 @@ export const saveTrackRemote = async (track: Partial<Track>): Promise<void> => {
     createdAt: new Date().toISOString()
   };
 
-  const dataToSave = { ...defaults, ...track };
+  // Merge defaults with provided data
+  // Note: We avoid spreading 'undefined' fields from the partial track object
+  const dataToSave: any = { ...defaults };
   
-  // Clean undefined values
-  Object.keys(dataToSave).forEach(key => 
-    (dataToSave as any)[key] === undefined && delete (dataToSave as any)[key]
-  );
+  // If it is an update (track has id), we might want to preserve existing fields if we fetched them first, 
+  // but usually in Firestore 'merge: true' handles the "only update fields present in payload" logic.
+  // However, we need to ensure we don't accidentally overwrite fields with undefined from the UI.
+  
+  Object.keys(track).forEach((key) => {
+      const value = (track as any)[key];
+      if (value !== undefined) {
+          dataToSave[key] = value;
+      }
+  });
+  
+  // Ensure ID is set in the document body too
+  dataToSave.id = id;
 
   // Compat Syntax: ref.set(data, options)
   await trackRef.set(dataToSave, { merge: true });

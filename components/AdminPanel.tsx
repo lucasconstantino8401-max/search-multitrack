@@ -33,6 +33,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
   // States para o modal de exclusão
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [trackToDelete, setTrackToDelete] = useState<Track | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Settings State
   const [sheetsUrl, setSheetsUrl] = useState('');
@@ -40,7 +41,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
   const [syncMsg, setSyncMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   // Form States
-  const [formData, setFormData] = useState({ title: '', artist: '', imageUrl: '', downloadUrl: '' });
+  const [formData, setFormData] = useState({ 
+      title: '', 
+      artist: '', 
+      imageUrl: '', 
+      downloadUrl: '', 
+      genre: 'Worship' 
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     // Load local settings
@@ -54,17 +62,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
 
   const handleSaveTrack = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
+    
     try {
       if (editingTrack) {
-        await saveTrackRemote({ ...editingTrack, ...formData });
+        // Edit Mode
+        await saveTrackRemote({ 
+            ...editingTrack, 
+            ...formData 
+        });
       } else {
+        // Create Mode
         await saveTrackRemote(formData);
       }
-      setFormData({ title: '', artist: '', imageUrl: '', downloadUrl: '' });
+      
+      // Reset Form
+      setFormData({ title: '', artist: '', imageUrl: '', downloadUrl: '', genre: 'Worship' });
       setEditingTrack(null);
-      // No need to loadData, listener updates UI
-    } catch (err) {
+      alert(editingTrack ? "Música atualizada com sucesso!" : "Música adicionada com sucesso!");
+    } catch (err: any) {
       console.error("Erro ao salvar:", err);
+      alert(`Erro ao salvar: ${err.message || 'Verifique o console'}`);
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -110,25 +130,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
 
   const confirmDelete = async () => {
     if (!trackToDelete) return;
+    setIsDeleting(true);
     
     try {
         await deleteTrackRemote(trackToDelete.id);
-    } catch (err) {
-        console.error("Erro ao deletar track:", err);
-    } finally {
         setIsModalOpen(false);
         setTrackToDelete(null);
+    } catch (err: any) {
+        console.error("Erro ao deletar track:", err);
+        alert(`Erro ao excluir: ${err.message}`);
+    } finally {
+        setIsDeleting(false);
     }
   };
 
   const handleEdit = (track: Track) => {
     setEditingTrack(track);
     setFormData({
-      title: track.title,
-      artist: track.artist,
-      imageUrl: track.imageUrl,
-      downloadUrl: track.downloadUrl
+      title: track.title || '',
+      artist: track.artist || '',
+      imageUrl: track.imageUrl || '',
+      downloadUrl: track.downloadUrl || '',
+      genre: track.genre || 'Worship'
     });
+  };
+
+  const handleCancelEdit = () => {
+      setEditingTrack(null);
+      setFormData({ title: '', artist: '', imageUrl: '', downloadUrl: '', genre: 'Worship' });
   };
 
   return (
@@ -176,7 +205,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
         {activeTab === 'tracks' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Form */}
-            <div className="lg:col-span-1 bg-zinc-900/50 p-6 rounded-xl h-fit border border-zinc-800">
+            <div className="lg:col-span-1 bg-zinc-900/50 p-6 rounded-xl h-fit border border-zinc-800 sticky top-0">
               <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 {editingTrack ? <Edit2 size={18} /> : <Plus size={18} />}
                 {editingTrack ? 'Editar Track' : 'Nova Track'}
@@ -184,27 +213,68 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
               <form onSubmit={handleSaveTrack} className="space-y-5">
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Título</label>
-                  <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" placeholder="Ex: Oceanos" />
+                  <input 
+                    required 
+                    value={formData.title} 
+                    onChange={e => setFormData({...formData, title: e.target.value})} 
+                    className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" 
+                    placeholder="Ex: Oceanos" 
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Artista</label>
-                  <input required value={formData.artist} onChange={e => setFormData({...formData, artist: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" placeholder="Ex: Hillsong" />
+                  <input 
+                    required 
+                    value={formData.artist} 
+                    onChange={e => setFormData({...formData, artist: e.target.value})} 
+                    className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" 
+                    placeholder="Ex: Hillsong" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Gênero</label>
+                  <select 
+                    value={formData.genre} 
+                    onChange={e => setFormData({...formData, genre: e.target.value})} 
+                    className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors appearance-none"
+                  >
+                      <option value="Worship">Worship</option>
+                      <option value="Rock">Rock</option>
+                      <option value="Pop">Pop</option>
+                      <option value="Instrumental">Instrumental</option>
+                      <option value="Ao Vivo">Ao Vivo</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">URL da Capa</label>
-                  <input required value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" placeholder="https://..." />
+                  <input 
+                    value={formData.imageUrl} 
+                    onChange={e => setFormData({...formData, imageUrl: e.target.value})} 
+                    className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" 
+                    placeholder="https://..." 
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Link Download</label>
-                  <input required value={formData.downloadUrl} onChange={e => setFormData({...formData, downloadUrl: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" placeholder="https://..." />
+                  <input 
+                    value={formData.downloadUrl} 
+                    onChange={e => setFormData({...formData, downloadUrl: e.target.value})} 
+                    className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" 
+                    placeholder="https://..." 
+                  />
                 </div>
                 
                 <div className="flex gap-2 pt-4">
-                  <button type="submit" className="flex-1 bg-white hover:bg-zinc-200 text-black font-bold py-3 rounded-lg flex justify-center items-center gap-2 text-sm transition-colors shadow-lg">
-                    <Save size={16} /> {editingTrack ? 'Salvar' : 'Adicionar'}
+                  <button 
+                    type="submit" 
+                    disabled={isSaving}
+                    className="flex-1 bg-white hover:bg-zinc-200 disabled:bg-zinc-600 disabled:cursor-not-allowed text-black font-bold py-3 rounded-lg flex justify-center items-center gap-2 text-sm transition-colors shadow-lg"
+                  >
+                    {isSaving ? <RefreshCw size={16} className="animate-spin"/> : <Save size={16} />} 
+                    {editingTrack ? 'Salvar Alterações' : 'Adicionar Track'}
                   </button>
                   {editingTrack && (
-                    <button type="button" onClick={() => {setEditingTrack(null); setFormData({ title: '', artist: '', imageUrl: '', downloadUrl: '' })}} className="px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors">
+                    <button type="button" onClick={handleCancelEdit} className="px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors">
                       Cancelar
                     </button>
                   )}
@@ -221,20 +291,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
                  </span>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                 {tracks.map(track => (
                   <div key={track.id} className="bg-zinc-900/50 p-3 rounded-lg border border-zinc-800 flex gap-4 items-center group hover:border-white/30 transition-colors">
-                    <img src={track.imageUrl} alt={track.title} className="w-12 h-12 rounded bg-black object-cover grayscale group-hover:grayscale-0 transition-all" onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150/000000/FFFFFF?text=Music'} />
+                    <img 
+                        src={track.imageUrl} 
+                        alt={track.title} 
+                        className="w-12 h-12 rounded bg-black object-cover grayscale group-hover:grayscale-0 transition-all" 
+                        onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150/000000/FFFFFF?text=Music'} 
+                    />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-white font-medium text-sm truncate">{track.title}</h4>
-                      <p className="text-zinc-500 text-xs truncate">{track.artist}</p>
+                      <p className="text-zinc-500 text-xs truncate">{track.artist} • {track.genre}</p>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => handleEdit(track)} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded"><Edit2 size={14} /></button>
                       <button onClick={() => handleDelete(track)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-zinc-800 rounded"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
+                {tracks.length === 0 && (
+                    <div className="col-span-2 text-center py-10 text-zinc-600 text-sm">
+                        Nenhuma música cadastrada. Use o formulário para adicionar.
+                    </div>
+                )}
               </div>
             </div>
           </div>
@@ -348,16 +428,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
                   </p>
                   <div className="flex justify-end gap-3">
                       <button 
+                          disabled={isDeleting}
                           onClick={() => {setIsModalOpen(false); setTrackToDelete(null);}}
                           className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm rounded-lg transition"
                       >
                           Cancelar
                       </button>
                       <button 
+                          disabled={isDeleting}
                           onClick={confirmDelete}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-bold transition flex items-center gap-2"
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-900 text-white text-sm rounded-lg font-bold transition flex items-center gap-2"
                       >
-                          <Trash2 size={14} /> Excluir Definitivamente
+                          {isDeleting ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />} 
+                          {isDeleting ? 'Excluindo...' : 'Excluir Definitivamente'}
                       </button>
                   </div>
               </div>
