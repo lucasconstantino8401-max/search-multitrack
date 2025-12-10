@@ -40,6 +40,7 @@ export const saveTrack = (track: Partial<Track>): Track => {
     artist: track.artist || 'Artista Desconhecido',
     imageUrl: track.imageUrl || '',
     downloadUrl: track.downloadUrl || '',
+    genre: track.genre || 'Worship',
     searchCount: 0,
     createdAt: new Date().toISOString(),
     ...track
@@ -192,7 +193,8 @@ export const syncFromGoogleSheets = async (url: string): Promise<number> => {
 
       const imageUrl = item.imageUrl || item.image || item.imagem || item.capa || item.foto || item['link da capa'] || '';
       const downloadUrl = item.downloadUrl || item.download || item.link || item.url || item.arquivo || item['link de download'] || '';
-      
+      const genre = item.genre || item.genero || item.estilo || item.style || item.categoria || 'Worship';
+
       // Find existing track by ID (if provided) or fuzzy match Title+Artist
       let existingIndex = -1;
       
@@ -213,6 +215,7 @@ export const syncFromGoogleSheets = async (url: string): Promise<number> => {
           artist: artist || 'Desconhecido',
           imageUrl: imageUrl,
           downloadUrl: downloadUrl,
+          genre: genre,
           searchCount: existingIndex !== -1 ? currentTracks[existingIndex].searchCount : 0,
           createdAt: existingIndex !== -1 ? currentTracks[existingIndex].createdAt : new Date().toISOString()
       };

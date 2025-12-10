@@ -6,6 +6,7 @@ export interface Track {
   artist: string;
   imageUrl: string;
   downloadUrl: string;
+  genre?: string; // New field for Genre/Style
   searchCount: number;
   createdAt?: string; // ISO Date string
 }
@@ -53,4 +54,4 @@ export interface MainAppProps {
 }
 
 // Runtime export to ensure this file is emitted as a module by the transpiler
-export const TYPES_VERSION = '2.0.0';
+export const TYPES_VERSION = '2.1.0';

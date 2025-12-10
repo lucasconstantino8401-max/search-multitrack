@@ -10,7 +10,10 @@ import {
   Sparkles,
   Database,
   Play,
-  Filter
+  Filter,
+  Calendar,
+  Music,
+  Share2
 } from 'lucide-react';
 import { getTracks, incrementSearchCount } from '../services/storage';
 import type { MainAppProps, Track } from '../types';
@@ -55,7 +58,8 @@ const HeaderLogo = () => (
     </div>
 );
 
-// Componente de Card Reutilizável
+// --- COMPONENTES AUXILIARES ---
+
 interface TrackCardProps {
   track: Track;
   featured?: boolean;
@@ -65,8 +69,9 @@ interface TrackCardProps {
 
 const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick, index = 0 }) => (
   <div 
+      onClick={() => onClick(track)}
       className={`
-        relative group overflow-hidden rounded-2xl flex flex-col
+        relative group overflow-hidden rounded-2xl flex flex-col cursor-pointer
         bg-zinc-950/40 backdrop-blur-md border border-white/10
         transition-all duration-500 ease-out
         hover:-translate-y-1.5 hover:border-white/30 hover:bg-zinc-900/60
@@ -121,21 +126,107 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
                {track.artist}
              </p>
           </div>
-
-          {/* Botão de Link / Download */}
-          <button 
-            onClick={(e) => {
-                e.stopPropagation();
-                onClick(track);
-            }}
-            className="w-full bg-zinc-900 hover:bg-white text-zinc-400 hover:text-black py-3 rounded-xl font-bold text-xs transition-all duration-300 flex items-center justify-center gap-2 uppercase tracking-wide border border-zinc-800 hover:border-white hover:shadow-lg hover:shadow-white/10"
-          >
-            <Download size={14} />
-            <span>Download</span>
-          </button>
       </div>
   </div>
 );
+
+// Componente da Tela de Detalhes
+interface TrackDetailProps {
+    track: Track;
+    onClose: () => void;
+    onDownload: () => void;
+}
+
+const TrackDetailView: React.FC<TrackDetailProps> = ({ track, onClose, onDownload }) => {
+    // Formatar data de adição
+    const formattedDate = track.createdAt 
+        ? new Date(track.createdAt).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' })
+        : 'Data desconhecida';
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in overflow-y-auto">
+            {/* Background Blur Effect */}
+            <div className="absolute inset-0 z-0 overflow-hidden">
+                <img 
+                    src={track.imageUrl} 
+                    className="w-full h-full object-cover blur-[80px] opacity-20 scale-125"
+                    alt=""
+                />
+                <div className="absolute inset-0 bg-black/60"></div>
+            </div>
+
+            {/* Content Container */}
+            <div className="relative z-10 flex flex-col min-h-screen">
+                
+                {/* Navbar within Modal */}
+                <div className="p-6 flex justify-between items-center">
+                    <button 
+                        onClick={onClose}
+                        className="flex items-center gap-2 text-white/70 hover:text-white bg-black/20 hover:bg-white/10 px-4 py-2 rounded-full backdrop-blur-md transition-all border border-white/5"
+                    >
+                        <ArrowLeft size={20} />
+                        <span className="text-sm font-bold uppercase tracking-wider">Voltar</span>
+                    </button>
+                    
+                    {/* Share Button (Visual only) */}
+                    <button className="p-3 rounded-full text-white/70 hover:text-white bg-black/20 hover:bg-white/10 backdrop-blur-md transition-all border border-white/5">
+                        <Share2 size={20} />
+                    </button>
+                </div>
+
+                {/* Main Details */}
+                <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-10 px-6 py-10 max-w-6xl mx-auto w-full">
+                    
+                    {/* Album Art */}
+                    <div className="w-full max-w-md aspect-square relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-tr from-zinc-500 to-white opacity-20 blur-xl rounded-[2rem] group-hover:opacity-40 transition-opacity duration-700"></div>
+                        <img 
+                            src={track.imageUrl} 
+                            alt={track.title} 
+                            className="relative w-full h-full object-cover rounded-[1.5rem] shadow-2xl border border-white/10"
+                            onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600/09090b/3f3f46?text=No+Image'}
+                        />
+                    </div>
+
+                    {/* Text Info */}
+                    <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl">
+                        <div className="flex gap-3 mb-6 flex-wrap justify-center md:justify-start">
+                            {track.genre && (
+                                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-bold uppercase tracking-wider text-white/90">
+                                    <Music size={12} /> {track.genre}
+                                </span>
+                            )}
+                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 backdrop-blur-md border border-white/5 text-xs font-bold uppercase tracking-wider text-zinc-400">
+                                <Calendar size={12} /> {formattedDate}
+                            </span>
+                        </div>
+
+                        <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-2 tracking-tight drop-shadow-xl">
+                            {track.title}
+                        </h1>
+                        <h2 className="text-xl md:text-2xl text-zinc-300 font-medium mb-10 tracking-wide uppercase">
+                            {track.artist}
+                        </h2>
+
+                        <div className="flex flex-col w-full gap-4">
+                            <button 
+                                onClick={onDownload}
+                                className="w-full bg-white hover:bg-zinc-200 text-black py-4 px-8 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-wide shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:scale-[1.02]"
+                            >
+                                <Download size={24} />
+                                <span>Baixar Multitrack</span>
+                            </button>
+                            
+                            <p className="text-zinc-500 text-xs text-center mt-2">
+                                Ao baixar, você concorda com os termos de uso da plataforma.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const CATEGORIES = ["Todos", "Worship", "Rock", "Pop", "Instrumental", "Ao Vivo"];
 
@@ -148,6 +239,9 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
   const [searched, setSearched] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [activeCategory, setActiveCategory] = useState("Todos");
+  
+  // State for selected track (Detail View)
+  const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
 
   // Check Permissions
   const isAdmin = ADMIN_EMAILS.includes(user.email);
@@ -219,10 +313,18 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
   };
 
   const handleTrackClick = (track: Track) => {
-    if (track.downloadUrl && track.downloadUrl !== '#') {
-       window.open(track.downloadUrl, '_blank');
+      setSelectedTrack(track);
+  };
+
+  const handleDownloadTrack = () => {
+    if (!selectedTrack) return;
+    
+    if (selectedTrack.downloadUrl && selectedTrack.downloadUrl !== '#') {
+       window.open(selectedTrack.downloadUrl, '_blank');
     }
-    incrementSearchCount(track.id);
+    incrementSearchCount(selectedTrack.id);
+    
+    // Update data locally to reflect new count
     setTimeout(() => {
         loadData();
     }, 500);
@@ -449,6 +551,15 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
         )}
         </div>
       </main>
+
+      {/* Track Detail Overlay */}
+      {selectedTrack && (
+          <TrackDetailView 
+              track={selectedTrack} 
+              onClose={() => setSelectedTrack(null)} 
+              onDownload={handleDownloadTrack}
+          />
+      )}
 
       {/* Admin Modal */}
       {showAdmin && isAdmin && <AdminPanel user={user} onClose={() => setShowAdmin(false)} onUpdate={handleAdminUpdate} />}
