@@ -1,8 +1,26 @@
 import type { Track, User, AppSettings } from '../types';
-import { db, firebase } from './firebase'; // Use the robustly initialized firebase object
+import { db as initialDb, firebase } from './firebase'; 
 
 const STORAGE_KEY_SETTINGS = 'search_multitracks_settings';
 const STORAGE_KEY_USER = 'search_multitracks_user';
+
+// --- HELPER TO ENSURE DB ---
+// Tries to get the exported db, or re-accesses it from firebase instance if available
+const getDb = () => {
+    if (initialDb) return initialDb;
+    if (firebase && typeof firebase.firestore === 'function') {
+        try {
+             return firebase.firestore();
+        } catch (e) {
+             console.error("Failed to lazy load firestore", e);
+        }
+    }
+    // Try to get from global window if desperation strikes (helps in some environments)
+    if ((window as any).firebase && typeof (window as any).firebase.firestore === 'function') {
+        return (window as any).firebase.firestore();
+    }
+    return null;
+};
 
 // --- TRACKS SERVICE (FIRESTORE) ---
 
@@ -14,37 +32,43 @@ const TRACKS_COLLECTION = 'tracks';
  * @returns Função para cancelar a inscrição.
  */
 export const listenToTracks = (callback: (tracks: Track[]) => void) => {
-  if (!db) {
+  const database = getDb();
+  if (!database) {
     console.error("Database not initialized");
     callback([]);
     return () => {};
   }
 
   // Compat Syntax: db.collection()
-  const unsubscribe = db.collection(TRACKS_COLLECTION).onSnapshot((snapshot: any) => {
-    const tracks: Track[] = [];
-    snapshot.forEach((doc: any) => {
-      tracks.push(doc.data() as Track);
-    });
-    callback(tracks);
-  }, (error: any) => {
-    console.error("Error listening to tracks:", error);
-  });
-
-  return unsubscribe;
+  try {
+      const unsubscribe = database.collection(TRACKS_COLLECTION).onSnapshot((snapshot: any) => {
+        const tracks: Track[] = [];
+        snapshot.forEach((doc: any) => {
+          tracks.push(doc.data() as Track);
+        });
+        callback(tracks);
+      }, (error: any) => {
+        console.error("Error listening to tracks:", error);
+      });
+      return unsubscribe;
+  } catch (err) {
+      console.error("Firestore connection error:", err);
+      return () => {};
+  }
 };
 
 /**
  * Salva ou atualiza uma track no Firestore.
  */
 export const saveTrackRemote = async (track: Partial<Track>): Promise<void> => {
-  if (!db) throw new Error("Database not initialized");
+  const database = getDb();
+  if (!database) throw new Error("Database not initialized");
 
   // Generate ID if not present
-  const id = track.id || db.collection(TRACKS_COLLECTION).doc().id;
+  const id = track.id || database.collection(TRACKS_COLLECTION).doc().id;
   
   // Reference
-  const trackRef = db.collection(TRACKS_COLLECTION).doc(id);
+  const trackRef = database.collection(TRACKS_COLLECTION).doc(id);
 
   // Default values for a new track
   const defaults = {
@@ -77,20 +101,27 @@ export const saveTrackRemote = async (track: Partial<Track>): Promise<void> => {
  * Remove uma track do Firestore.
  */
 export const deleteTrackRemote = async (id: string): Promise<void> => {
-  if (!db) throw new Error("Database not initialized");
-  await db.collection(TRACKS_COLLECTION).doc(id).delete();
+  const database = getDb();
+  if (!database) throw new Error("Database not initialized");
+  await database.collection(TRACKS_COLLECTION).doc(id).delete();
 };
 
 /**
  * Incrementa o contador de busca atomicamente no Firestore.
  */
 export const incrementSearchCountRemote = async (id: string): Promise<void> => {
-  if (!db || !firebase) return;
+  const database = getDb();
+  if (!database || !firebase) return;
   try {
-    // Compat Syntax: FieldValue.increment - ensure we use the correct firebase namespace
-    await db.collection(TRACKS_COLLECTION).doc(id).update({
-      searchCount: firebase.firestore.FieldValue.increment(1)
-    });
+    // Compat Syntax: FieldValue.increment
+    // Check where FieldValue resides
+    const FieldValue = firebase.firestore?.FieldValue || (window as any).firebase?.firestore?.FieldValue;
+    
+    if (FieldValue) {
+        await database.collection(TRACKS_COLLECTION).doc(id).update({
+          searchCount: FieldValue.increment(1)
+        });
+    }
   } catch (e) {
     console.error("Error updating count:", e);
   }
@@ -140,7 +171,8 @@ const parseCSV = (csvText: string): any[] => {
 
 export const syncFromGoogleSheets = async (url: string): Promise<number> => {
   if (!url) throw new Error("URL não configurada.");
-  if (!db) throw new Error("Banco de dados não conectado.");
+  const database = getDb();
+  if (!database) throw new Error("Banco de dados não conectado.");
 
   let fetchUrl = url;
 
@@ -184,7 +216,7 @@ export const syncFromGoogleSheets = async (url: string): Promise<number> => {
   
   if (!Array.isArray(items)) throw new Error("Formato de dados inválido.");
 
-  const snapshot = await db.collection(TRACKS_COLLECTION).get();
+  const snapshot = await database.collection(TRACKS_COLLECTION).get();
   const currentTracks: Track[] = [];
   snapshot.forEach((doc: any) => currentTracks.push(doc.data() as Track));
 

@@ -13,7 +13,8 @@ import {
   RefreshCw,
   DownloadCloud,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Database
 } from 'lucide-react';
 import { 
     listenToTracks,
@@ -23,12 +24,16 @@ import {
     saveSettings,
     syncFromGoogleSheets 
 } from '../services/storage';
+import { db } from '../services/firebase';
 import type { AdminPanelProps, Track } from '../types';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
   const [activeTab, setActiveTab] = useState<'tracks' | 'users' | 'settings'>('tracks');
   const [tracks, setTracks] = useState<Track[]>([]);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
+  
+  // Database Status
+  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   
   // States para o modal de exclusão
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,12 +56,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    // Check DB Connection
+    if (db) {
+        setDbStatus('connected');
+    } else {
+        // Fallback check via window if lazy loaded
+        const checkInterval = setInterval(() => {
+            if ((window as any).firebase?.firestore) {
+                setDbStatus('connected');
+                clearInterval(checkInterval);
+            } else {
+                setDbStatus('error');
+            }
+        }, 1000);
+        setTimeout(() => clearInterval(checkInterval), 5000);
+    }
+
     // Load local settings
     const settings = getSettings();
     setSheetsUrl(settings.googleSheetsApiUrl);
 
     // Subscribe to tracks
-    const unsubscribe = listenToTracks(setTracks);
+    const unsubscribe = listenToTracks((data) => {
+        setTracks(data);
+        if (data.length > 0) setDbStatus('connected');
+    });
     return () => unsubscribe();
   }, [user]);
 
@@ -79,10 +103,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
       // Reset Form
       setFormData({ title: '', artist: '', imageUrl: '', downloadUrl: '', genre: 'Worship' });
       setEditingTrack(null);
-      alert(editingTrack ? "Música atualizada com sucesso!" : "Música adicionada com sucesso!");
+      
+      // Visual feedback via alert for now (could be toast)
+      // alert(editingTrack ? "Música atualizada com sucesso!" : "Música adicionada com sucesso!");
     } catch (err: any) {
       console.error("Erro ao salvar:", err);
-      alert(`Erro ao salvar: ${err.message || 'Verifique o console'}`);
+      alert(`Erro ao salvar: ${err.message || 'Verifique se o banco de dados está inicializado.'}`);
     } finally {
         setIsSaving(false);
     }
@@ -172,9 +198,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
               Search Multitracks <span className="text-zinc-600 font-normal">| Console</span>
             </h1>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-4">
+              {/* DB Status Indicator */}
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                  dbStatus === 'connected' ? 'bg-green-900/20 border-green-900 text-green-500' : 
+                  dbStatus === 'error' ? 'bg-red-900/20 border-red-900 text-red-500' : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+              }`}>
+                  <Database size={12} />
+                  {dbStatus === 'connected' ? 'DB Conectado' : dbStatus === 'error' ? 'Erro Conexão' : 'Conectando...'}
+              </div>
+
+              <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={20} />
+              </button>
+          </div>
         </header>
 
         {/* Navigation */}
@@ -246,29 +283,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">URL da Capa</label>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">URL da Capa (Imagem)</label>
                   <input 
                     value={formData.imageUrl} 
                     onChange={e => setFormData({...formData, imageUrl: e.target.value})} 
                     className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" 
-                    placeholder="https://..." 
+                    placeholder="https://exemplo.com/imagem.jpg" 
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Link Download</label>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Link Download (Arquivo)</label>
                   <input 
                     value={formData.downloadUrl} 
                     onChange={e => setFormData({...formData, downloadUrl: e.target.value})} 
                     className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:border-white outline-none transition-colors" 
-                    placeholder="https://..." 
+                    placeholder="https://exemplo.com/arquivo.zip" 
                   />
                 </div>
                 
                 <div className="flex gap-2 pt-4">
                   <button 
                     type="submit" 
-                    disabled={isSaving}
-                    className="flex-1 bg-white hover:bg-zinc-200 disabled:bg-zinc-600 disabled:cursor-not-allowed text-black font-bold py-3 rounded-lg flex justify-center items-center gap-2 text-sm transition-colors shadow-lg"
+                    disabled={isSaving || dbStatus === 'error'}
+                    className="flex-1 bg-white hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-black font-bold py-3 rounded-lg flex justify-center items-center gap-2 text-sm transition-colors shadow-lg"
                   >
                     {isSaving ? <RefreshCw size={16} className="animate-spin"/> : <Save size={16} />} 
                     {editingTrack ? 'Salvar Alterações' : 'Adicionar Track'}
@@ -279,6 +316,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
                     </button>
                   )}
                 </div>
+                {dbStatus === 'error' && (
+                    <p className="text-red-500 text-xs text-center mt-2">Erro: Banco de dados não conectado.</p>
+                )}
               </form>
             </div>
 
@@ -311,8 +351,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
                   </div>
                 ))}
                 {tracks.length === 0 && (
-                    <div className="col-span-2 text-center py-10 text-zinc-600 text-sm">
-                        Nenhuma música cadastrada. Use o formulário para adicionar.
+                    <div className="col-span-2 text-center py-10 text-zinc-600 text-sm border border-dashed border-zinc-800 rounded-lg">
+                        {dbStatus === 'connected' ? 'Nenhuma música encontrada. Adicione a primeira!' : 'Aguardando conexão...'}
                     </div>
                 )}
               </div>

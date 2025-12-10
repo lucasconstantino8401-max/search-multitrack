@@ -6,6 +6,11 @@ import type { User } from '../types';
 // Workaround for some ESM environments where default export is wrapped
 const firebase = (firebaseModule as any).default || firebaseModule;
 
+// Expose to window for fallback mechanisms in storage.ts
+if (typeof window !== 'undefined') {
+    (window as any).firebase = firebase;
+}
+
 // ------------------------------------------------------------------
 // CONFIGURAÇÃO DO FIREBASE
 // ------------------------------------------------------------------
