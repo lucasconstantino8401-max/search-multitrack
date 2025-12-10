@@ -28,13 +28,12 @@ try {
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
     }
-    const app = firebase.app();
     
-    // Inicializa Auth
-    auth = app.auth();
+    // Inicializa Auth usando o namespace global compatível
+    auth = firebase.auth();
     
-    // Inicializa Firestore (Banco de Dados)
-    db = app.firestore();
+    // Inicializa Firestore (Banco de Dados) usando o namespace global compatível
+    db = firebase.firestore();
     
     googleProvider = new firebase.auth.GoogleAuthProvider();
     googleProvider.setCustomParameters({
