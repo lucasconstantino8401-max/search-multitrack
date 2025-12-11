@@ -40,6 +40,7 @@ export interface SplashScreenProps {
 
 export interface LoginScreenProps {
   onLogin: (user: User) => void;
+  onCancel?: () => void; // Added to allow going back to guest mode
 }
 
 export interface AdminPanelProps {
@@ -49,9 +50,10 @@ export interface AdminPanelProps {
 }
 
 export interface MainAppProps {
-  user: User;
+  user: User | null; // Allow null for Guest Mode
   onLogout: () => void;
+  onLoginRequest: () => void; // Trigger login screen
 }
 
 // Runtime export to ensure this file is emitted as a module by the transpiler
-export const TYPES_VERSION = '2.1.0';
+export const TYPES_VERSION = '2.2.0';

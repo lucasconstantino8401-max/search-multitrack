@@ -5,7 +5,6 @@ import {
   Music, 
   Users, 
   Settings,
-  Link as LinkIcon,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
@@ -13,15 +12,11 @@ import {
   ExternalLink,
   Code2,
   HelpCircle,
-  ShieldAlert,
-  Copy,
-  Save
+  FileCode
 } from 'lucide-react';
 import { 
     listenToTracks,
-    saveSettingsRemote,
-    saveSettings, // Adicionado import para fallback local
-    listenToGlobalSettings,
+    GOOGLE_SHEETS_URL,
     syncFromGoogleSheets 
 } from '../services/storage';
 import type { AdminPanelProps, Track } from '../types';
@@ -31,108 +26,46 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   
   // Settings State
-  const [apiUrl, setApiUrl] = useState('');
+  const [testUrl, setTestUrl] = useState(GOOGLE_SHEETS_URL);
   const [isTesting, setIsTesting] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{type: 'success' | 'error' | 'warning', text: string} | null>(null);
-  
-  // Rule Helper State
-  const [showRulesHelper, setShowRulesHelper] = useState(false);
 
   useEffect(() => {
-    // Carregar configurações globais (Firestore)
-    const unsubscribeSettings = listenToGlobalSettings((settings) => {
-        if (settings.googleSheetsApiUrl) {
-            setApiUrl(settings.googleSheetsApiUrl);
-        }
-    });
-
     // Carregar dados (apenas leitura para preview)
     const unsubscribeTracks = listenToTracks((data) => {
         setTracks(data);
     });
     
     return () => {
-        unsubscribeSettings();
         unsubscribeTracks();
     };
   }, [user]);
 
-  const handleSaveAndTest = async () => {
-    if (!apiUrl) {
-      setStatusMsg({ type: 'error', text: 'Por favor, insira uma URL válida.' });
+  const handleTestConnection = async () => {
+    if (!testUrl) {
+      setStatusMsg({ type: 'error', text: 'URL vazia.' });
       return;
     }
 
     setIsTesting(true);
     setStatusMsg(null);
-    setShowRulesHelper(false);
 
     try {
-      // 1. Testa a conexão primeiro (Leitura da planilha pública)
-      const count = await syncFromGoogleSheets(apiUrl);
+      const count = await syncFromGoogleSheets(testUrl);
       
       if (count === 0) {
-          setStatusMsg({ type: 'error', text: 'Conectado, mas nenhum dado compatível foi encontrado. Verifique os nomes das colunas.' });
-          setIsTesting(false);
-          return;
-      } 
-
-      // 2. Se deu certo, tenta salvar na Nuvem (Firestore)
-      await saveSettingsRemote({ googleSheetsApiUrl: apiUrl });
-      
-      setStatusMsg({ type: 'success', text: `Sucesso! Configuração salva na nuvem e sincronizada com todos os usuários.` });
-      onUpdate(); 
+          setStatusMsg({ type: 'error', text: 'Conectado, mas nenhum dado compatível foi encontrado. Verifique as colunas.' });
+      } else {
+          setStatusMsg({ type: 'success', text: `Sucesso! Encontramos ${count} músicas nesta URL.` });
+      }
       
     } catch (error: any) {
       console.error(error);
-      
-      // DETECTA O ERRO DE PERMISSÃO ESPECIFICAMENTE
-      if (error.code === 'permission-denied' || error.message?.toLowerCase().includes('permission') || error.message?.toLowerCase().includes('permissão')) {
-          
-          // FALLBACK: Salva localmente para que o admin não fique travado
-          saveSettings({ googleSheetsApiUrl: apiUrl });
-          
-          setStatusMsg({ 
-              type: 'warning', 
-              text: 'Salvo LOCALMENTE. Para funcionar globalmente (para todos os usuários), você precisa configurar as Regras do Firebase abaixo.' 
-          });
-          setShowRulesHelper(true);
-          onUpdate(); // Atualiza a UI localmente pelo menos
-
-      } else {
-          let errorText = 'Erro desconhecido ao salvar.';
-          if (error.message) errorText = error.message;
-          
-          setStatusMsg({ 
-            type: 'error', 
-            text: errorText
-          });
-      }
+      setStatusMsg({ type: 'error', text: 'Erro ao conectar. Link inválido.' });
     } finally {
       setIsTesting(false);
     }
   };
-
-  const rulesCode = `rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // Regra Global de Configuração
-    // Permite leitura para todos, mas escrita apenas para seu email
-    match /app_config/main {
-      allow read: if true;
-      allow write: if request.auth != null && (
-         request.auth.token.email.matches('.*${user.email?.split('@')[0]}.*') || 
-         request.auth.token.email == 'admin@searchmultitracks.com'
-      );
-    }
-
-    // Regra de Analytics
-    match /analytics/{document=**} {
-       allow read, write: if true;
-    }
-  }
-}`;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 overflow-y-auto flex items-center justify-center p-4">
@@ -157,7 +90,7 @@ service cloud.firestore {
             onClick={() => setActiveTab('settings')}
             className={`px-6 py-4 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'settings' ? 'border-green-500 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
           >
-            <Settings size={16} /> Configuração
+            <Settings size={16} /> Fonte de Dados
           </button>
           <button 
             onClick={() => setActiveTab('tracks')}
@@ -183,103 +116,74 @@ service cloud.firestore {
              {/* Connection Card */}
              <div className="bg-zinc-900/50 p-8 rounded-xl border border-zinc-800">
                <div className="flex items-center gap-4 mb-6">
-                 <div className="p-3 bg-green-900/20 text-green-500 border border-green-900/30 rounded-lg">
-                   <Globe size={32} />
+                 <div className="p-3 bg-blue-900/20 text-blue-500 border border-blue-900/30 rounded-lg">
+                   <FileCode size={32} />
                  </div>
                  <div>
-                   <h3 className="text-xl font-bold text-white">Google Sheets / API (Global)</h3>
-                   <p className="text-zinc-400 text-sm">A URL salva aqui será atualizada automaticamente para todos os usuários do App.</p>
+                   <h3 className="text-xl font-bold text-white">Configuração via Código</h3>
+                   <p className="text-zinc-400 text-sm">A URL da planilha agora é definida diretamente no arquivo <code>services/storage.ts</code>.</p>
                  </div>
                </div>
                
                <div className="space-y-4">
                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                     Link da Planilha ou API
+                     URL Atual (Definida no Código)
                  </label>
                  <div className="flex gap-3">
                      <input 
                         type="url" 
-                        value={apiUrl}
-                        onChange={(e) => {
-                            setApiUrl(e.target.value);
-                            setStatusMsg(null); 
-                            setShowRulesHelper(false);
-                        }}
-                        placeholder="https://docs.google.com/spreadsheets/d/..."
-                        className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 text-white focus:border-green-500 outline-none transition-all font-mono text-sm"
+                        value={testUrl}
+                        readOnly
+                        className="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-400 font-mono text-sm cursor-not-allowed select-all"
                      />
-                     <button 
-                        onClick={handleSaveAndTest}
-                        disabled={isTesting}
-                        className="bg-white hover:bg-zinc-200 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold px-6 py-3 rounded-lg flex items-center gap-2 transition whitespace-nowrap"
-                     >
-                        {isTesting ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
-                        Salvar Globalmente
-                     </button>
+                 </div>
+                 
+                 {!GOOGLE_SHEETS_URL && (
+                    <div className="p-3 bg-amber-900/20 border border-amber-900/50 rounded-lg flex items-center gap-3">
+                        <AlertCircle className="text-amber-500 flex-shrink-0" size={20} />
+                        <p className="text-amber-200 text-xs">
+                            <strong>Atenção:</strong> Nenhuma URL configurada. Abra o arquivo <code>services/storage.ts</code> e cole seu link na constante <code>GOOGLE_SHEETS_URL</code>.
+                        </p>
+                    </div>
+                 )}
+
+                 <div className="mt-6 pt-6 border-t border-zinc-800">
+                     <h4 className="text-sm font-bold text-white mb-3">Testar Nova URL (Apenas Teste Local)</h4>
+                     <div className="flex gap-3">
+                        <input 
+                            type="url" 
+                            placeholder="Cole um link aqui para testar se funciona..."
+                            onChange={(e) => {
+                                setTestUrl(e.target.value);
+                                setStatusMsg(null);
+                            }}
+                            className="flex-1 bg-black border border-zinc-700 rounded-lg px-4 text-white focus:border-blue-500 outline-none transition-all font-mono text-sm"
+                        />
+                        <button 
+                            onClick={handleTestConnection}
+                            disabled={isTesting}
+                            className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-3 rounded-lg flex items-center gap-2 transition whitespace-nowrap"
+                        >
+                            {isTesting ? <RefreshCw size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+                            Testar Leitura
+                        </button>
+                     </div>
                  </div>
 
                  {/* Status Message */}
                  {statusMsg && (
                     <div className={`p-4 rounded-lg flex items-center gap-3 border mt-4 ${
                         statusMsg.type === 'success' ? 'bg-green-900/10 border-green-900/30 text-green-400' : 
-                        statusMsg.type === 'warning' ? 'bg-amber-900/10 border-amber-900/30 text-amber-400' :
                         'bg-red-900/10 border-red-900/30 text-red-400'
                     }`}>
-                        {statusMsg.type === 'success' ? <CheckCircle2 size={18} /> : 
-                         statusMsg.type === 'warning' ? <AlertCircle size={18} /> : 
-                         <AlertCircle size={18} />}
+                        {statusMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
                         <span className="text-sm font-medium">{statusMsg.text}</span>
                     </div>
-                 )}
-
-                 {/* --- RULES HELPER (SHOWS ON PERMISSION ERROR) --- */}
-                 {showRulesHelper && (
-                     <div className="mt-6 border border-amber-500/30 bg-amber-950/20 rounded-xl overflow-hidden animate-fade-in-up">
-                        <div className="p-4 bg-amber-900/20 border-b border-amber-500/20 flex items-center gap-3">
-                            <ShieldAlert className="text-amber-500" size={24} />
-                            <div>
-                                <h4 className="font-bold text-amber-500 text-sm uppercase tracking-wide">Permissão Necessária</h4>
-                                <p className="text-zinc-400 text-xs">O Firebase bloqueou a gravação global. Configure as regras abaixo para liberar.</p>
-                            </div>
-                        </div>
-                        <div className="p-6">
-                            <p className="text-zinc-300 text-sm mb-4">
-                                1. Vá ao <strong>Firebase Console</strong> &gt; <strong>Firestore Database</strong> &gt; <strong>Rules</strong>.<br/>
-                                2. Substitua o código existente por este abaixo e clique em <strong>Publicar</strong>.
-                            </p>
-                            
-                            <div className="relative group">
-                                <pre className="bg-black border border-zinc-800 rounded-lg p-4 text-xs font-mono text-zinc-300 overflow-x-auto selection:bg-amber-900/50 selection:text-white">
-                                    {rulesCode}
-                                </pre>
-                                <button 
-                                    onClick={() => navigator.clipboard.writeText(rulesCode)}
-                                    className="absolute top-2 right-2 bg-zinc-800 hover:bg-zinc-700 text-white p-2 rounded-md transition opacity-0 group-hover:opacity-100 shadow-lg border border-zinc-700"
-                                    title="Copiar Código"
-                                >
-                                    <Copy size={14} />
-                                </button>
-                            </div>
-                            
-                            <div className="mt-4 flex gap-4">
-                                <a 
-                                    href="https://console.firebase.google.com/project/_/firestore/rules" 
-                                    target="_blank" 
-                                    rel="noreferrer"
-                                    className="bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition"
-                                >
-                                    Abrir Regras do Firebase <ExternalLink size={14} />
-                                </a>
-                            </div>
-                        </div>
-                     </div>
                  )}
 
                </div>
              </div>
 
-             {/* Instructions Card (Only show if not showing error to reduce clutter) */}
-             {!showRulesHelper && (
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-zinc-900/30 p-6 rounded-xl border border-zinc-800">
                     <h4 className="font-bold text-white mb-4 flex items-center gap-2">
@@ -317,7 +221,7 @@ service cloud.firestore {
                             No Google Sheets, vá em <strong>Arquivo {'>'} Compartilhar {'>'} Publicar na Web</strong>.
                         </li>
                         <li>
-                            Certifique-se de que a coluna <strong>Link</strong> contém a URL completa para o arquivo (Drive, Dropbox, etc).
+                            Use o link CSV gerado e cole no arquivo <code>services/storage.ts</code>.
                         </li>
                         <li>
                             A coluna <strong>Capa</strong> deve ser um link direto de imagem (terminando em .jpg ou .png).
@@ -325,7 +229,6 @@ service cloud.firestore {
                     </ul>
                 </div>
              </div>
-             )}
 
           </div>
         )}
@@ -338,19 +241,21 @@ service cloud.firestore {
                     <h3 className="text-lg font-bold text-white">Dados Recebidos</h3>
                     <p className="text-zinc-500 text-sm">Visualização em tempo real da base de dados.</p>
                  </div>
-                 <a 
-                    href={apiUrl} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex items-center gap-2 text-xs font-bold uppercase text-green-500 hover:text-green-400 bg-green-900/20 px-4 py-2 rounded-lg border border-green-900/50 transition"
-                 >
-                    <ExternalLink size={14} /> Abrir Planilha
-                 </a>
+                 {GOOGLE_SHEETS_URL && (
+                    <a 
+                        href={GOOGLE_SHEETS_URL} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="flex items-center gap-2 text-xs font-bold uppercase text-green-500 hover:text-green-400 bg-green-900/20 px-4 py-2 rounded-lg border border-green-900/50 transition"
+                    >
+                        <ExternalLink size={14} /> Abrir Planilha Fonte
+                    </a>
+                 )}
              </div>
              
              {tracks.length === 0 ? (
                  <div className="text-center py-20 border border-dashed border-zinc-800 rounded-xl bg-zinc-900/20">
-                     <p className="text-zinc-500">Nenhum dado encontrado. Verifique as colunas da planilha.</p>
+                     <p className="text-zinc-500">Nenhum dado encontrado. Verifique se a URL está configurada corretamente.</p>
                  </div>
              ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -387,7 +292,7 @@ service cloud.firestore {
                 <Users size={32} className="text-zinc-400" />
              </div>
              <h3 className="text-xl font-bold text-white">Conta Conectada</h3>
-             <p className="text-zinc-500 text-sm mb-6">Você está logado via Firebase Auth.</p>
+             <p className="text-zinc-500 text-sm mb-6">Você está logado via Firebase Auth (Login Google).</p>
              
              <div className="bg-black border border-zinc-800 p-4 rounded-lg text-left w-full space-y-2">
                <p className="text-sm text-zinc-400 flex justify-between">

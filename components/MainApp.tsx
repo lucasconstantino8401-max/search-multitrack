@@ -6,14 +6,15 @@ import {
   X, 
   TrendingUp, 
   Download, 
-  ArrowLeft,
-  Sparkles,
-  Database,
-  Play,
+  ArrowLeft, 
+  Sparkles, 
+  Database, 
+  Play, 
   Filter,
-  Calendar,
+  Calendar, 
   Music,
-  Share2
+  Share2,
+  LogIn
 } from 'lucide-react';
 import { listenToTracks, incrementSearchCountRemote } from '../services/storage';
 import type { MainAppProps, Track } from '../types';
@@ -26,7 +27,7 @@ const ADMIN_EMAILS = [
     'lucasconstantino8401@gmail.com'
 ];
 
-// Função auxiliar para normalizar texto (remove acentos e deixa minúsculo)
+// Função auxiliar para normalizar texto
 const normalizeText = (text: string) => {
   return text
     .toLowerCase()
@@ -34,7 +35,7 @@ const normalizeText = (text: string) => {
     .replace(/[\u0300-\u036f]/g, "");
 };
 
-// Componente de Logo SVG Reutilizável (Monocromático)
+// Componente de Logo SVG Reutilizável
 const AppLogoSVG = ({ className = "w-full h-full" }: { className?: string }) => (
     <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
         <path d="M50 10C27.9086 10 10 27.9086 10 50C10 72.0914 27.9086 90 50 90C63.2 90 74.8 83.6 82.5 73.5" stroke="currentColor" strokeWidth="6" strokeLinecap="round" className="text-white opacity-100" />
@@ -45,7 +46,6 @@ const AppLogoSVG = ({ className = "w-full h-full" }: { className?: string }) => 
     </svg>
 );
 
-// Componente de Logo Pequeno para o Header
 const HeaderLogo = () => (
     <div className="flex items-center gap-3">
         <div className="w-10 h-10 relative">
@@ -58,8 +58,7 @@ const HeaderLogo = () => (
     </div>
 );
 
-// --- COMPONENTES AUXILIARES ---
-
+// --- TRACK CARD ---
 interface TrackCardProps {
   track: Track;
   featured?: boolean;
@@ -84,7 +83,6 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
         animationFillMode: 'both' 
       }}
   >
-      {/* Subtle white glow overlay on hover */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/0 to-white/0 opacity-0 group-hover:opacity-100 group-hover:to-white/5 transition-opacity duration-500 pointer-events-none"></div>
 
       {/* Imagem / Capa */}
@@ -95,23 +93,15 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
               className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110 opacity-80 grayscale group-hover:grayscale-0 group-hover:opacity-100" 
               onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300/09090b/3f3f46?text=No+Image'} 
           />
-          
-          {/* Subtle Dark Gradient at bottom */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-40"></div>
-
-          {/* Play Overlay */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
-              <div className="w-14 h-14 bg-white backdrop-blur-md border border-white rounded-full flex items-center justify-center pl-1 shadow-2xl scale-50 group-hover:scale-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] text-black group-hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+              <div className="w-14 h-14 bg-white backdrop-blur-md border border-white rounded-full flex items-center justify-center pl-1 shadow-2xl scale-50 group-hover:scale-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] text-black">
                   <Play size={24} fill="currentColor" />
               </div>
           </div>
-          
-          {/* Badge */}
           {featured && (
             <div className="absolute top-3 left-3 z-10">
-                 <span className="bg-white text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
-                   Top 1
-                 </span>
+                 <span className="bg-white text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">Top 1</span>
             </div>
           )}
       </div>
@@ -130,7 +120,7 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
   </div>
 );
 
-// Componente da Tela de Detalhes
+// --- TRACK DETAIL VIEW ---
 interface TrackDetailProps {
     track: Track;
     onClose: () => void;
@@ -138,14 +128,12 @@ interface TrackDetailProps {
 }
 
 const TrackDetailView: React.FC<TrackDetailProps> = ({ track, onClose, onDownload }) => {
-    // Formatar data de adição
     const formattedDate = track.createdAt 
         ? new Date(track.createdAt).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' })
         : 'Data desconhecida';
 
     return (
         <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in overflow-y-auto">
-            {/* Background Blur Effect */}
             <div className="absolute inset-0 z-0 overflow-hidden">
                 <img 
                     src={track.imageUrl} 
@@ -154,71 +142,68 @@ const TrackDetailView: React.FC<TrackDetailProps> = ({ track, onClose, onDownloa
                 />
                 <div className="absolute inset-0 bg-black/60"></div>
             </div>
+            
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 md:p-12 min-h-screen">
+                <button 
+                    onClick={onClose}
+                    className="absolute top-6 left-6 md:top-10 md:left-10 p-3 bg-black/20 backdrop-blur-xl border border-white/10 rounded-full text-white hover:bg-white hover:text-black transition-all group z-20"
+                >
+                    <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+                </button>
 
-            {/* Content Container */}
-            <div className="relative z-10 flex flex-col min-h-screen">
-                
-                {/* Navbar within Modal */}
-                <div className="p-6 flex justify-between items-center">
-                    <button 
-                        onClick={onClose}
-                        className="flex items-center gap-2 text-white/70 hover:text-white bg-black/20 hover:bg-white/10 px-4 py-2 rounded-full backdrop-blur-md transition-all border border-white/5"
-                    >
-                        <ArrowLeft size={20} />
-                        <span className="text-sm font-bold uppercase tracking-wider">Voltar</span>
-                    </button>
-                    
-                    {/* Share Button (Visual only) */}
-                    <button className="p-3 rounded-full text-white/70 hover:text-white bg-black/20 hover:bg-white/10 backdrop-blur-md transition-all border border-white/5">
-                        <Share2 size={20} />
-                    </button>
-                </div>
-
-                {/* Main Details */}
-                <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-10 px-6 py-10 max-w-6xl mx-auto w-full">
-                    
-                    {/* Album Art */}
-                    <div className="w-full max-w-md aspect-square relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-tr from-zinc-500 to-white opacity-20 blur-xl rounded-[2rem] group-hover:opacity-40 transition-opacity duration-700"></div>
-                        <img 
+                <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    {/* Imagem Grande */}
+                    <div className="relative aspect-square w-full max-w-md mx-auto rounded-3xl overflow-hidden shadow-[0_0_100px_-20px_rgba(255,255,255,0.1)] ring-1 ring-white/10 group">
+                         <img 
                             src={track.imageUrl} 
                             alt={track.title} 
-                            className="relative w-full h-full object-cover rounded-[1.5rem] shadow-2xl border border-white/10"
-                            onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600/09090b/3f3f46?text=No+Image'}
-                        />
+                            className="w-full h-full object-cover"
+                         />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                     </div>
 
-                    {/* Text Info */}
-                    <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl">
-                        <div className="flex gap-3 mb-6 flex-wrap justify-center md:justify-start">
-                            {track.genre && (
-                                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-bold uppercase tracking-wider text-white/90">
-                                    <Music size={12} /> {track.genre}
-                                </span>
-                            )}
-                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 backdrop-blur-md border border-white/5 text-xs font-bold uppercase tracking-wider text-zinc-400">
-                                <Calendar size={12} /> {formattedDate}
-                            </span>
+                    {/* Informações */}
+                    <div className="flex flex-col justify-center text-center md:text-left space-y-8">
+                        <div>
+                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-6">
+                                <Music size={12} />
+                                <span>Multitrack</span>
+                             </div>
+                             <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-2 tracking-tight">
+                                {track.title}
+                             </h1>
+                             <h2 className="text-xl md:text-2xl text-zinc-400 font-medium">
+                                {track.artist}
+                             </h2>
                         </div>
 
-                        <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-2 tracking-tight drop-shadow-xl">
-                            {track.title}
-                        </h1>
-                        <h2 className="text-xl md:text-2xl text-zinc-300 font-medium mb-10 tracking-wide uppercase">
-                            {track.artist}
-                        </h2>
+                        <div className="grid grid-cols-2 gap-4 text-sm max-w-md mx-auto md:mx-0">
+                            <div className="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col gap-1">
+                                <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2 justify-center md:justify-start">
+                                   <Calendar size={12} /> Data
+                                </span>
+                                <span className="text-zinc-300 font-mono">{formattedDate}</span>
+                            </div>
+                             <div className="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col gap-1">
+                                <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2 justify-center md:justify-start">
+                                   <TrendingUp size={12} /> Buscas
+                                </span>
+                                <span className="text-zinc-300 font-mono">{track.searchCount || 0}</span>
+                            </div>
+                        </div>
 
-                        <div className="flex flex-col w-full gap-4">
+                        <div className="flex flex-col gap-4 max-w-md mx-auto md:mx-0 w-full">
                             <button 
                                 onClick={onDownload}
-                                className="w-full bg-white hover:bg-zinc-200 text-black py-4 px-8 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-wide shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:scale-[1.02]"
+                                className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-5 px-8 rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] group"
                             >
-                                <Download size={24} />
-                                <span>Baixar Multitrack</span>
+                                <Download className="group-hover:animate-bounce" size={24} />
+                                <span className="tracking-widest">BAIXAR AGORA</span>
                             </button>
                             
-                            <p className="text-zinc-500 text-xs text-center mt-2">
-                                Ao baixar, você concorda com os termos de uso da plataforma.
+                            {/* Info de segurança */}
+                            <p className="text-[10px] text-zinc-500 text-center md:text-left max-w-xs mx-auto md:mx-0 leading-relaxed">
+                                Ao baixar, você será redirecionado para o servidor externo onde o arquivo está hospedado.
                             </p>
                         </div>
                     </div>
@@ -228,360 +213,201 @@ const TrackDetailView: React.FC<TrackDetailProps> = ({ track, onClose, onDownloa
     );
 };
 
-const CATEGORIES = ["Todos", "Worship", "Rock", "Pop", "Instrumental", "Ao Vivo"];
-
-const MainApp: React.FC<MainAppProps> = ({ user, onLogout }) => {
+// --- MAIN APP COMPONENT ---
+const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeSearchTerm, setActiveSearchTerm] = useState(''); // New state for submitted search
   const [tracks, setTracks] = useState<Track[]>([]);
-  const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
-  const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
-  const [recentTracks, setRecentTracks] = useState<Track[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("Todos");
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
-  const [loadingData, setLoadingData] = useState(true);
-  
-  // Controle de atualização vinda do Admin
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isGuest, setIsGuest] = useState(true);
 
-  // Check Permissions (Case Insensitive)
-  const isAdmin = ADMIN_EMAILS.some(email => 
-    email.toLowerCase() === (user.email || '').toLowerCase()
-  );
-
-  // 1. Setup Data Listener (Runs on mount OR when refreshTrigger changes)
+  // Verifica se é Admin
   useEffect(() => {
-    setLoadingData(true);
-    const unsubscribe = listenToTracks((allTracks) => {
-        setTracks(allTracks);
-        
-        // 1. Calcula Trending
-        const sortedByPopularity = [...allTracks]
-            .filter(t => t.searchCount > 0)
-            .sort((a, b) => (b.searchCount || 0) - (a.searchCount || 0))
-            .slice(0, 4);
-        setTrendingTracks(sortedByPopularity);
+    if (user && user.email) {
+        setIsGuest(false);
+        const check = ADMIN_EMAILS.some(email => user.email.includes(email) || email === user.email);
+        setIsAdmin(check);
+    } else {
+        setIsGuest(true);
+        setIsAdmin(false);
+    }
+  }, [user]);
 
-        // 2. Calcula Recentes
-        const sortedByDate = [...allTracks]
-            .sort((a, b) => {
-                const dateA = new Date(a.createdAt || 0).getTime();
-                const dateB = new Date(b.createdAt || 0).getTime();
-                return dateB - dateA; 
-            })
-            .slice(0, 32); 
-        setRecentTracks(sortedByDate);
-        setLoadingData(false);
+  // Carrega Tracks
+  useEffect(() => {
+    const unsubscribe = listenToTracks((data) => {
+        setTracks(data);
     });
-
     return () => unsubscribe();
-  }, [refreshTrigger]);
+  }, []);
 
-  // 2. Filter Logic (Runs when tracks update OR activeSearchTerm changes)
-  useEffect(() => {
-      if (activeSearchTerm) {
-          const term = normalizeText(activeSearchTerm);
-          const results = tracks.filter(t => {
-              const title = normalizeText(t.title || '');
-              const artist = normalizeText(t.artist || '');
-              return title.includes(term) || artist.includes(term);
-          });
-          setFilteredTracks(results);
-          setSearched(true);
-      } else {
-          // If active search is cleared, go back to home
-          setFilteredTracks([]);
-          setSearched(false);
+  // Filter Logic
+  const filteredTracks = tracks.filter(track => {
+    const searchLower = normalizeText(searchTerm);
+    return (
+      normalizeText(track.title).includes(searchLower) ||
+      normalizeText(track.artist).includes(searchLower)
+    );
+  });
+
+  const handleDownload = async (track: Track) => {
+      if (!track.downloadUrl) {
+          alert("Erro: Link de download não disponível.");
+          return;
       }
-  }, [tracks, activeSearchTerm]);
-
-  const handleSearch = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    
-    const cleanSearchTerm = searchTerm.trim();
-    if (!cleanSearchTerm) {
-        setActiveSearchTerm('');
-        return;
-    }
-    // Set the active term to trigger the filter effect
-    setActiveSearchTerm(cleanSearchTerm);
-  };
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setSearchTerm(value);
-      // Optional: Clear results immediately if input is cleared
-      if (value === '') {
-          setActiveSearchTerm('');
-      }
-  };
-
-  const handleCategoryClick = (cat: string) => {
-      setActiveCategory(cat);
-  };
-
-  const handleTrackClick = (track: Track) => {
-      setSelectedTrack(track);
-  };
-
-  const handleDownloadTrack = async () => {
-    if (!selectedTrack) return;
-    
-    if (selectedTrack.downloadUrl && selectedTrack.downloadUrl !== '#') {
-       window.open(selectedTrack.downloadUrl, '_blank');
-    }
-    // Incrementa contagem no Firestore (Analytics)
-    await incrementSearchCountRemote(selectedTrack.id);
-  };
-
-  const clearSearch = () => {
-    setSearchTerm('');
-    setActiveSearchTerm('');
-    setActiveCategory("Todos");
-  };
-
-  const handleAdminUpdate = () => {
-    console.log("Reloading data from new settings...");
-    setRefreshTrigger(prev => prev + 1);
+      // Analytics
+      incrementSearchCountRemote(track.id);
+      // Open Link
+      window.open(track.downloadUrl, '_blank');
   };
 
   return (
-    <div className="min-h-screen bg-black font-sans selection:bg-white selection:text-black relative">
-      <InteractiveBackground />
+    <div className="min-h-screen bg-black text-white relative overflow-hidden font-sans selection:bg-white/20">
       
-      {/* Sticky Header */}
-      <nav className="bg-black/70 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40 px-6 py-4 flex justify-between items-center transition-all duration-300">
-        <div className="cursor-pointer" onClick={clearSearch}>
-           <HeaderLogo />
-        </div>
-        <div className="flex items-center gap-4">
-            {isAdmin && (
-                <button onClick={() => setShowAdmin(true)} className="group relative text-zinc-400 hover:text-black transition flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-zinc-900 hover:bg-white px-4 py-2 rounded-full border border-white/10 hover:border-transparent overflow-hidden shadow-lg shadow-black/50">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:animate-[shimmer_1s_infinite]"></div>
-                    <LayoutDashboard size={14} /> <span className="hidden sm:inline">Admin</span>
-                </button>
-            )}
-            
-            <div className="flex items-center gap-3 pl-2 border-l border-white/10">
-                {/* User Info & Badge */}
-                <div className="hidden md:flex flex-col items-end">
-                    <span className="text-xs font-bold text-white leading-none mb-0.5 max-w-[100px] truncate">{user.displayName?.split(' ')[0] || 'Usuário'}</span>
-                    {isAdmin && (
-                        <span className="text-[9px] font-black text-black bg-white px-1.5 rounded uppercase tracking-widest flex items-center justify-center">
-                            PRO
-                        </span>
-                    )}
-                </div>
+      <InteractiveBackground />
 
-                <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-white font-bold text-sm shadow-lg relative overflow-hidden">
-                    {user.photoURL ? (
-                        <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-                    ) : (
-                        <span>{user.email ? user.email[0].toUpperCase() : 'U'}</span>
-                    )}
-                </div>
+      {/* --- HEADER --- */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-black/50 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
+            
+            {/* Logo */}
+            <div className="flex-shrink-0 cursor-pointer hover:opacity-80 transition" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
+                <HeaderLogo />
             </div>
 
-            <button onClick={onLogout} className="text-zinc-500 hover:text-white transition p-2 hover:bg-zinc-900 rounded-full" title="Sair">
-                <LogOut size={18} />
-            </button>
-        </div>
-      </nav>
-
-      <main className="pb-24 relative z-10">
-        
-        {/* HERO SECTION */}
-        <div className="relative pt-16 pb-20 px-6 overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-zinc-900/20 via-black to-black z-0"></div>
-            
-            <div className="relative z-10 max-w-3xl mx-auto text-center">
-                <div className="flex flex-col items-center mb-8">
-                    <div className="w-32 h-32 mb-4">
-                        <AppLogoSVG />
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <span className="text-3xl md:text-4xl font-black text-zinc-600 tracking-[0.2em] uppercase leading-tight drop-shadow-lg">Search</span>
-                        <span className="text-3xl md:text-4xl font-black text-white tracking-[0.2em] uppercase leading-tight drop-shadow-lg">Multitracks</span>
-                    </div>
+            {/* Search Bar - Desktop */}
+            <div className="hidden md:flex flex-1 max-w-lg relative group">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                    <Search className="text-zinc-500 group-focus-within:text-white transition-colors" size={18} />
                 </div>
-                
-                <h1 className="text-xl md:text-2xl font-bold text-zinc-300 mb-6 tracking-tight">
-                    Encontre sua próxima Multitrack
-                </h1>
-                <p className="text-zinc-500 mb-10 text-base max-w-xl mx-auto leading-relaxed">
-                    A maior biblioteca de áudio profissional para suas produções.
-                    Pesquise, baixe e produza.
-                </p>
-
-                {/* SEARCH COMPONENT */}
-                <form onSubmit={handleSearch} className="relative group max-w-2xl mx-auto">
-                    <div className="absolute inset-0 bg-white rounded-full blur-2xl opacity-5 group-hover:opacity-10 transition duration-500 scale-95 group-hover:scale-100"></div>
-                    <div className="relative flex items-center bg-zinc-900/80 backdrop-blur-xl rounded-full p-2 border border-white/10 focus-within:border-white/30 shadow-2xl transition-all">
-                        <Search className="text-zinc-500 ml-4 group-focus-within:text-white transition-colors" size={24} />
-                        <input 
-                            type="text" 
-                            value={searchTerm}
-                            onChange={handleInputChange}
-                            placeholder="Buscar música, artista ou álbum..." 
-                            className="w-full bg-transparent border-none text-white px-4 py-3 focus:outline-none text-lg placeholder-zinc-600"
-                            disabled={loadingData}
-                        />
-                        {searchTerm && (
-                            <button type="button" onClick={clearSearch} className="p-2 text-zinc-500 hover:text-white transition">
-                                <X size={20} />
-                            </button>
-                        )}
-                        <button type="submit" disabled={loadingData || tracks.length === 0} className="bg-white hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-600 text-black rounded-full px-8 py-3 font-bold transition-all text-sm uppercase tracking-wide shadow-lg shadow-white/5">
-                            Buscar
-                        </button>
-                    </div>
-                </form>
-
-                {/* Categories Pills */}
-                <div className="mt-8 flex flex-wrap justify-center gap-2 animate-fade-in-up">
-                    {CATEGORIES.map(cat => (
-                        <button
-                            key={cat}
-                            onClick={() => handleCategoryClick(cat)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border ${
-                                activeCategory === cat 
-                                ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
-                                : 'bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:border-zinc-500 hover:text-zinc-300'
-                            }`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="max-w-7xl mx-auto px-6">
-        {loadingData ? (
-             <div className="flex justify-center py-20">
-                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
-             </div>
-        ) : tracks.length === 0 ? (
-            /* EMPTY STATE */
-            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-zinc-800 rounded-3xl bg-zinc-900/20 max-w-2xl mx-auto backdrop-blur-sm">
-                <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 ring-1 ring-zinc-800 shadow-xl">
-                   <Database size={28} className="text-zinc-500" />
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-2">Biblioteca Vazia</h2>
-                <p className="text-zinc-500 max-w-md mb-8 text-sm">
-                  {isAdmin 
-                    ? "Conecte sua base de dados no painel administrativo para iniciar." 
-                    : "A biblioteca está sendo atualizada."}
-                </p>
-                {isAdmin && (
+                <input 
+                    type="text" 
+                    placeholder="Buscar música, artista ou banda..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-full py-3 pl-12 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:bg-zinc-900 focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all shadow-inner"
+                />
+                 {searchTerm && (
                     <button 
-                      onClick={() => setShowAdmin(true)}
-                      className="bg-white text-black hover:bg-zinc-200 px-6 py-3 rounded-xl font-bold transition shadow-lg flex items-center gap-2 text-sm shadow-white/5"
+                        onClick={() => setSearchTerm('')}
+                        className="absolute inset-y-0 right-3 flex items-center text-zinc-500 hover:text-white"
                     >
-                      <LayoutDashboard size={16} />
-                      Configurar Base de Dados
+                        <X size={16} />
                     </button>
                 )}
             </div>
-        ) : (
-            <>
-                {!searched ? (
-                    /* Home View */
-                    <div className="animate-fade-in space-y-16">
-                        {trendingTracks.length > 0 && (
-                            <section>
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-2">
-                                        <TrendingUp className="text-white" size={20} />
-                                        <h2 className="text-2xl font-bold text-white tracking-tight">Em Alta</h2>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                    {trendingTracks.map((track, index) => (
-                                        <TrackCard key={track.id} track={track} featured={true} onClick={handleTrackClick} index={index} />
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                        {recentTracks.length > 0 && (
-                            <section>
-                                <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
-                                    <div className="flex items-center gap-2">
-                                        <Sparkles className="text-zinc-500" size={20} />
-                                        <h2 className="text-2xl font-bold text-white tracking-tight">
-                                            {trendingTracks.length === 0 ? 'Biblioteca Completa' : 'Novidades'}
-                                        </h2>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {recentTracks.map((track, index) => (
-                                        <TrackCard key={`recent-${track.id}`} track={track} onClick={handleTrackClick} index={index} />
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                    </div>
-                ) : (
-                    /* Search Results */
-                    <div className="animate-fade-in">
-                        {filteredTracks.length > 0 ? (
-                            <>
-                                <div className="flex items-center justify-between mb-8 pb-4">
-                                    <h2 className="text-2xl font-bold text-white">
-                                        {searchTerm ? `Resultados para "${searchTerm}"` : 'Resultados'}
-                                        <span className="text-zinc-500 text-lg font-normal ml-3">({filteredTracks.length})</span>
-                                    </h2>
-                                    <button onClick={clearSearch} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-bold bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800 transition-colors">
-                                        <Filter size={12} /> Limpar Filtros
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {filteredTracks.map((track, index) => (
-                                        <TrackCard key={`search-${track.id}`} track={track} onClick={handleTrackClick} index={index} />
-                                    ))}
-                                </div>
-                            </>
-                        ) : (
-                            /* Not Found State */
-                            <div className="flex flex-col items-center justify-center py-24 text-center animate-fade-in-up">
-                                <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-zinc-800">
-                                    <Search size={40} className="text-zinc-600" />
-                                </div>
-                                <h2 className="text-xl font-bold text-white mb-2">
-                                    Nenhum resultado encontrado
-                                </h2>
-                                <p className="text-zinc-500 mb-8 text-sm max-w-xs mx-auto">
-                                    Tente buscar por outro termo ou verifique a ortografia.
-                                </p>
-                                <button 
-                                    onClick={clearSearch}
-                                    className="flex items-center gap-2 bg-white text-black hover:bg-zinc-200 px-6 py-3 rounded-full font-bold text-sm transition-all shadow-lg hover:shadow-xl"
-                                >
-                                    <ArrowLeft size={16} /> Voltar para o início
-                                </button>
-                            </div>
-                        )}
-                    </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+                {isAdmin && (
+                    <button 
+                        onClick={() => setShowAdmin(true)}
+                        className="hidden md:flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-zinc-800 hover:text-white transition-colors"
+                    >
+                        <LayoutDashboard size={14} />
+                        <span>Painel</span>
+                    </button>
                 )}
-            </>
-        )}
+                
+                {isGuest ? (
+                     <button 
+                        onClick={onLoginRequest}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-transform active:scale-95 shadow-lg shadow-white/10"
+                    >
+                        <LogIn size={16} />
+                        <span className="hidden sm:inline">Entrar</span>
+                    </button>
+                ) : (
+                    <button 
+                        onClick={onLogout}
+                        className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-950/30 hover:border-red-900/50 transition-all"
+                        title="Sair"
+                    >
+                        <LogOut size={18} />
+                    </button>
+                )}
+            </div>
         </div>
+
+        {/* Search Bar - Mobile */}
+        <div className="md:hidden px-4 pb-4">
+             <div className="relative">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                    <Search className="text-zinc-500" size={18} />
+                </div>
+                <input 
+                    type="text" 
+                    placeholder="Buscar música..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-all"
+                />
+            </div>
+        </div>
+      </header>
+
+      {/* --- CONTENT --- */}
+      <main className="pt-36 md:pt-32 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative z-10">
+         
+         {/* Welcome / Stats Area */}
+         {!searchTerm && (
+             <div className="mb-12 animate-fade-in">
+                 <h1 className="text-3xl md:text-5xl font-black text-white mb-2 tracking-tight">
+                    {isGuest ? 'Bem-vindo.' : `Olá, ${user?.displayName?.split(' ')[0] || 'Visitante'}.`}
+                 </h1>
+                 <p className="text-zinc-400 text-lg">
+                    {tracks.length > 0 ? `${tracks.length} multitracks disponíveis para você.` : 'Carregando biblioteca...'}
+                 </p>
+             </div>
+         )}
+
+         {/* Results Grid */}
+         {filteredTracks.length > 0 ? (
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                 {filteredTracks.map((track, idx) => (
+                     <TrackCard 
+                        key={track.id} 
+                        track={track} 
+                        onClick={setSelectedTrack} 
+                        index={idx}
+                     />
+                 ))}
+             </div>
+         ) : (
+             <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                 <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-4">
+                     <Search size={32} className="text-zinc-600" />
+                 </div>
+                 <p className="text-zinc-500 font-medium">Nenhuma música encontrada.</p>
+             </div>
+         )}
+
       </main>
 
-      {/* Track Detail Overlay */}
+      {/* --- MODALS --- */}
+      
+      {/* Track Details */}
       {selectedTrack && (
           <TrackDetailView 
-              track={selectedTrack} 
-              onClose={() => setSelectedTrack(null)} 
-              onDownload={handleDownloadTrack}
+             track={selectedTrack} 
+             onClose={() => setSelectedTrack(null)} 
+             onDownload={() => handleDownload(selectedTrack)}
           />
       )}
 
-      {/* Admin Modal */}
-      {showAdmin && isAdmin && <AdminPanel user={user} onClose={() => setShowAdmin(false)} onUpdate={handleAdminUpdate} />}
+      {/* Admin Panel */}
+      {showAdmin && user && (
+          <AdminPanel 
+             user={user} 
+             onClose={() => setShowAdmin(false)}
+             onUpdate={() => {
+                 // Refresh handled by listeners
+                 setShowAdmin(false);
+             }}
+          />
+      )}
+
     </div>
   );
 };

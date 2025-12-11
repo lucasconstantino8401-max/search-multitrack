@@ -1,6 +1,5 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
 import type { User } from '../types';
 
 // ------------------------------------------------------------------
@@ -18,52 +17,34 @@ const firebaseConfig = {
 
 // --- SINGLETONS ---
 let auth: any = undefined;
-let db: any = undefined;
 let googleProvider: any = undefined;
-let isConfigured = false;
 
-// Inicialização segura
 try {
-    // Verifica se já existe uma instância (importante para HMR/Dev)
+    // 1. Initialize App (Idempotent check)
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
     }
     
-    // Configura Referências
-    // O 'firebase' importado aqui já deve ter .auth() e .firestore() anexados pelos imports laterais
+    // 2. Initialize Auth
     if (firebase.auth) {
         auth = firebase.auth();
+        googleProvider = new firebase.auth.GoogleAuthProvider();
+        googleProvider.setCustomParameters({ prompt: 'select_account' });
     } else {
-        console.error("Firebase Auth module not loaded. Check import maps.");
+        console.error("Firebase Auth module failed to load.");
     }
     
-    if (firebase.firestore) {
-        db = firebase.firestore();
-    } else {
-        console.error("Firebase Firestore module not loaded. Check import maps.");
-    }
-
-    if (auth && firebase.auth && firebase.auth.GoogleAuthProvider) {
-        googleProvider = new firebase.auth.GoogleAuthProvider();
-        googleProvider.setCustomParameters({
-            prompt: 'select_account'
-        });
-    }
-
-    // Exportar para window para fallback
+    // Export for debug
     if (typeof window !== 'undefined') {
         (window as any).firebase = firebase;
     }
 
-    if (auth && db) {
-        isConfigured = true;
-        console.log("Firebase initialized successfully.");
-    }
-
 } catch (error) {
-    console.error("Firebase Initialization Error:", error);
-    isConfigured = false;
+    console.error("Firebase Init Error:", error);
 }
+
+// Exportamos 'db' como undefined pois removemos o Firestore
+const db = undefined;
 
 export { auth, db, firebase };
 
@@ -71,17 +52,16 @@ export { auth, db, firebase };
  * Realiza o login com Google.
  */
 export const signInWithGoogle = async (): Promise<User> => {
-    if (!isConfigured || !auth || !googleProvider) {
-        console.warn("Firebase not configured. Using Mock.");
+    if (!auth || !googleProvider) {
+        console.warn("Auth not initialized. Using Mock.");
         return new Promise((resolve) => {
              setTimeout(() => {
-                 const mockUser: User = {
-                     uid: 'mock-admin-' + Date.now(),
+                 resolve({
+                     uid: 'mock-' + Date.now(),
                      email: 'admin@searchmultitracks.com', 
                      displayName: 'Admin (Mock)',
                      photoURL: ''
-                 };
-                 resolve(mockUser);
+                 });
              }, 1000);
         });
     }
@@ -89,7 +69,6 @@ export const signInWithGoogle = async (): Promise<User> => {
     try {
         const result = await auth.signInWithPopup(googleProvider);
         const fbUser = result.user;
-        
         return {
             uid: fbUser.uid,
             email: fbUser.email || '',
@@ -98,25 +77,6 @@ export const signInWithGoogle = async (): Promise<User> => {
         };
     } catch (error: any) {
         console.error("Google Auth Error:", error);
-        
-        // Fallback para ambientes restritos (como iframes de preview)
-        if (error.code === 'auth/operation-not-supported-in-this-environment' || 
-            error.code === 'auth/popup-closed-by-user' ||
-            error.code === 'auth/unauthorized-domain') {
-            
-            console.warn("Ambiente restrito. Ativando Mock.");
-            return new Promise((resolve) => {
-                 setTimeout(() => {
-                     const mockUser: User = {
-                         uid: 'mock-admin-' + Date.now(),
-                         email: 'admin@searchmultitracks.com', 
-                         displayName: 'Admin (Mock)',
-                         photoURL: ''
-                     };
-                     resolve(mockUser);
-                 }, 1500);
-            });
-        }
         throw error;
     }
 };
@@ -125,11 +85,7 @@ export const signInWithGoogle = async (): Promise<User> => {
  * Realiza o logout.
  */
 export const logoutFirebase = async () => {
-    if (isConfigured && auth) {
-        try {
-            await auth.signOut();
-        } catch (e) {
-            console.warn("Logout error:", e);
-        }
+    if (auth) {
+        await auth.signOut();
     }
 };

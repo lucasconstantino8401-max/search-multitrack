@@ -1,69 +1,13 @@
-import type { Track, User, AppSettings } from '../types';
-import { db, firebase } from './firebase'; 
+import type { Track, User } from '../types';
 
-const STORAGE_KEY_SETTINGS = 'search_multitracks_settings';
+// ==============================================================================
+// CONFIGURAÇÃO DA URL DE DADOS (EDITE AQUI)
+// Cole abaixo o link da sua planilha (Publicada na Web -> CSV) ou API JSON.
+// ==============================================================================
+export const GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1psm6eajGo83X0LOXyQU2nnQTFM6asPvX1Hg-qsoyfcc/edit?usp=sharing"; 
+// Exemplo: "https://docs.google.com/spreadsheets/d/SEU_ID/export?format=csv"
+
 const STORAGE_KEY_USER = 'search_multitracks_user';
-const FIRESTORE_CONFIG_COLLECTION = 'app_config';
-const FIRESTORE_CONFIG_DOC = 'main';
-
-// --- SETTINGS SERVICE (HYBRID: FIRESTORE + LOCAL) ---
-
-// Salva as configurações na Nuvem (Firestore) para que todos vejam
-export const saveSettingsRemote = async (settings: AppSettings): Promise<void> => {
-    if (!db) {
-        // Fallback local se Firebase não estiver ativo
-        console.warn("Firestore não disponível, salvando localmente.");
-        localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-        return;
-    }
-
-    // Removemos o try/catch genérico para permitir que o erro de permissão (permission-denied)
-    // chegue até o componente AdminPanel, onde mostraremos as instruções de correção.
-    await db.collection(FIRESTORE_CONFIG_COLLECTION).doc(FIRESTORE_CONFIG_DOC).set(settings, { merge: true });
-};
-
-// Escuta as configurações da Nuvem em Tempo Real
-export const listenToGlobalSettings = (callback: (settings: AppSettings) => void) => {
-    if (!db) {
-        // Fallback: retorna o local storage imediatamente
-        const local = localStorage.getItem(STORAGE_KEY_SETTINGS);
-        if (local) callback(JSON.parse(local));
-        return () => {};
-    }
-
-    // Escuta mudanças no documento 'app_config/main'
-    const unsubscribe = db.collection(FIRESTORE_CONFIG_COLLECTION).doc(FIRESTORE_CONFIG_DOC)
-        .onSnapshot((doc: any) => {
-            if (doc.exists) {
-                const data = doc.data() as AppSettings;
-                // Atualiza também o local para cache rápido na próxima vez
-                localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(data));
-                callback(data);
-            } else {
-                // Se não existe documento, tenta usar o local
-                const local = localStorage.getItem(STORAGE_KEY_SETTINGS);
-                if (local) callback(JSON.parse(local));
-            }
-        }, (error: any) => {
-            console.error("Erro ao ouvir configurações (pode ser permissão):", error);
-        });
-
-    return unsubscribe;
-};
-
-// Mantemos o getSettings síncrono apenas para estados iniciais de UI, se necessário
-export const getSettings = (): AppSettings => {
-  const stored = localStorage.getItem(STORAGE_KEY_SETTINGS);
-  if (!stored) {
-    return { googleSheetsApiUrl: '' };
-  }
-  return JSON.parse(stored);
-};
-
-export const saveSettings = (settings: AppSettings): void => {
-    // Wrapper legado para manter compatibilidade, mas preferimos saveSettingsRemote
-    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-};
 
 // --- DATA PARSERS ---
 
@@ -249,40 +193,34 @@ const fetchData = async (url: string): Promise<Track[]> => {
     }
 };
 
-// --- CORE SERVICE (LISTENER PRINCIPAL) ---
+// --- CORE SERVICE (HARDCODED URL) ---
 
 export const listenToTracks = (callback: (tracks: Track[]) => void) => {
-  let activeUrl = '';
   let intervalId: any = null;
   let isActive = true;
 
   const loadData = async () => {
-      if (!isActive || !activeUrl) return;
-      const tracks = await fetchData(activeUrl);
+      if (!isActive) return;
+      
+      if (!GOOGLE_SHEETS_URL) {
+          console.log("Nenhuma URL de dados configurada em services/storage.ts");
+          callback([]);
+          return;
+      }
+
+      const tracks = await fetchData(GOOGLE_SHEETS_URL);
       if (isActive) callback(tracks);
   };
 
-  // 1. Primeiro, ouvimos a configuração GLOBAL do Firestore
-  const unsubscribeSettings = listenToGlobalSettings((settings) => {
-      if (settings.googleSheetsApiUrl && settings.googleSheetsApiUrl !== activeUrl) {
-          activeUrl = settings.googleSheetsApiUrl;
-          console.log("Nova URL de dados recebida:", activeUrl);
-          
-          // Carrega imediatamente ao receber nova URL
-          loadData();
+  // Carrega imediatamente
+  loadData();
 
-          // Reinicia intervalo de polling (60s)
-          if (intervalId) clearInterval(intervalId);
-          intervalId = setInterval(loadData, 60000);
-      } else if (!settings.googleSheetsApiUrl) {
-          callback([]); // Limpa se não tiver URL
-      }
-  });
+  // Polling a cada 60s
+  intervalId = setInterval(loadData, 60000);
 
   return () => {
       isActive = false;
-      unsubscribeSettings(); // Para de ouvir o Firestore
-      if (intervalId) clearInterval(intervalId); // Para o polling
+      if (intervalId) clearInterval(intervalId);
   };
 };
 
@@ -306,29 +244,18 @@ export const logoutUser = (): void => {
   localStorage.removeItem(STORAGE_KEY_USER);
 };
 
-// --- STUBS ---
+// --- STUBS (No Ops) ---
 
-export const saveTrackRemote = async (track: Partial<Track>): Promise<void> => {
-  console.warn("Modo API: Edição deve ser feita na fonte de dados.");
+export const saveSettingsRemote = async (settings: any) => { console.log("Firestore desativado."); };
+export const listenToGlobalSettings = (cb: any) => { 
+    // Simula retorno imediato da configuração local
+    cb({ googleSheetsApiUrl: GOOGLE_SHEETS_URL });
+    return () => {}; 
 };
-
-export const deleteTrackRemote = async (id: string): Promise<void> => {
-    console.warn("Modo API: Exclusão deve ser feita na fonte de dados.");
-};
+export const saveSettings = (settings: any) => {};
 
 export const incrementSearchCountRemote = async (id: string): Promise<void> => {
-   // Analytics stub
-   if (db && id) {
-       try {
-           const ref = db.collection('analytics').doc(id);
-           await ref.set({ 
-               searchCount: firebase.firestore.FieldValue.increment(1),
-               lastAccessed: new Date().toISOString()
-           }, { merge: true });
-       } catch (e) {
-           console.warn("Analytics error (silent):", e);
-       }
-   }
+   // Analytics desativado (Firestore removido)
 };
 
 export const syncFromGoogleSheets = async (url: string): Promise<number> => {

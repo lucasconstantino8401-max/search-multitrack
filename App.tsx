@@ -10,6 +10,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     // Verifica sessão local
@@ -22,6 +23,7 @@ export default function App() {
 
   const handleLogin = (newUser: User) => {
     setUser(newUser);
+    setIsLoggingIn(false);
   };
 
   const handleLogout = async () => {
@@ -42,9 +44,22 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <LoginScreen onLogin={handleLogin} />;
+  // Se o usuário solicitou login explicitamente
+  if (isLoggingIn) {
+      return (
+        <LoginScreen 
+            onLogin={handleLogin} 
+            onCancel={() => setIsLoggingIn(false)} 
+        />
+      );
   }
 
-  return <MainApp user={user} onLogout={handleLogout} />;
+  // Renderiza o App Principal (pode ser com user logado ou null/guest)
+  return (
+    <MainApp 
+        user={user} 
+        onLogout={handleLogout} 
+        onLoginRequest={() => setIsLoggingIn(true)} 
+    />
+  );
 }
