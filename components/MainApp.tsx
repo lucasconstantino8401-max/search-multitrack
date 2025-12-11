@@ -58,6 +58,82 @@ const HeaderLogo = () => (
     </div>
 );
 
+// --- TRACK DETAIL VIEW (MODAL) ---
+interface TrackDetailViewProps {
+  track: Track;
+  onClose: () => void;
+  onDownload: () => void;
+}
+
+const TrackDetailView: React.FC<TrackDetailViewProps> = ({ track, onClose, onDownload }) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+       <div 
+          className="bg-zinc-950 border border-zinc-800 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative"
+          onClick={(e) => e.stopPropagation()}
+       >
+          <button 
+             onClick={onClose}
+             className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-zinc-800 text-white rounded-full transition"
+          >
+             <X size={20} />
+          </button>
+
+          {/* Left: Image Blur/Display */}
+          <div className="w-full md:w-1/2 h-64 md:h-auto relative overflow-hidden bg-zinc-900 group">
+             <img 
+               src={track.imageUrl} 
+               alt={track.title} 
+               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+               onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600'}
+             />
+             <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-80 md:hidden"></div>
+          </div>
+
+          {/* Right: Info */}
+          <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center relative bg-zinc-950/95">
+              {/* Genre Badge */}
+              <div className="mb-4">
+                  <span className="px-3 py-1 rounded-full border border-zinc-700 bg-zinc-900/50 text-[10px] uppercase tracking-widest text-zinc-400 font-bold">
+                      {track.genre || 'Multitrack'}
+                  </span>
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-black text-white mb-2 leading-tight tracking-tight">{track.title}</h2>
+              <p className="text-xl text-zinc-400 font-medium mb-8">{track.artist}</p>
+              
+              <div className="flex gap-4 mb-8">
+                  <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase font-bold tracking-wider bg-zinc-900 px-3 py-2 rounded-lg">
+                      <Calendar size={14} />
+                      <span>{track.createdAt ? new Date(track.createdAt).getFullYear() : '2024'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase font-bold tracking-wider bg-zinc-900 px-3 py-2 rounded-lg">
+                      <Music size={14} />
+                      <span>Multitrack</span>
+                  </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                  <button 
+                      onClick={onDownload}
+                      className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                  >
+                      <Download size={20} className="stroke-[3px]" />
+                      <span>BAIXAR AGORA</span>
+                  </button>
+                  
+                  <div className="flex gap-3">
+                      <button className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all text-sm border border-zinc-800">
+                          <Share2 size={16} /> Compartilhar
+                      </button>
+                  </div>
+              </div>
+          </div>
+       </div>
+    </div>
+  );
+};
+
 // --- TRACK CARD ---
 interface TrackCardProps {
   track: Track;
@@ -76,335 +152,299 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
         hover:-translate-y-1.5 hover:border-white/30 hover:bg-zinc-900/60
         hover:shadow-[0_15px_40px_-10px_rgba(255,255,255,0.05)]
         ${featured ? 'h-full' : ''}
-        animate-fade-in-up
+        animate-fade-in
       `}
-      style={{ 
-        animationDelay: `${index * 0.05}s`,
-        animationFillMode: 'both' 
-      }}
+      style={{ animationDelay: `${index * 50}ms` }}
   >
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/0 to-white/0 opacity-0 group-hover:opacity-100 group-hover:to-white/5 transition-opacity duration-500 pointer-events-none"></div>
-
-      {/* Imagem / Capa */}
-      <div className="relative aspect-square overflow-hidden bg-zinc-950">
-          <img 
-              src={track.imageUrl} 
-              alt={track.title} 
-              className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110 opacity-80 grayscale group-hover:grayscale-0 group-hover:opacity-100" 
-              onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300/09090b/3f3f46?text=No+Image'} 
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-40"></div>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
-              <div className="w-14 h-14 bg-white backdrop-blur-md border border-white rounded-full flex items-center justify-center pl-1 shadow-2xl scale-50 group-hover:scale-100 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] text-black">
-                  <Play size={24} fill="currentColor" />
-              </div>
-          </div>
-          {featured && (
-            <div className="absolute top-3 left-3 z-10">
-                 <span className="bg-white text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">Top 1</span>
-            </div>
-          )}
+    {/* Image Container */}
+    <div className={`relative overflow-hidden ${featured ? 'h-2/3' : 'aspect-square'}`}>
+      <img 
+        src={track.imageUrl} 
+        alt={track.title} 
+        loading="lazy"
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 will-change-transform"
+        onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400'}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
+      
+      {/* Play/Action Overlay Button - RESTORED BEHAVIOR */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/20 backdrop-blur-[2px]">
+          <button 
+             className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center transform scale-50 group-hover:scale-100 transition-all duration-300 hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+             onClick={(e) => {
+                 e.stopPropagation();
+                 if(track.downloadUrl) window.open(track.downloadUrl, '_blank');
+             }}
+          >
+              <Play fill="currentColor" className="ml-1" size={24} />
+          </button>
       </div>
+      
+      {/* Top Left Badge */}
+      <div className="absolute top-3 left-3">
+          <span className="px-2 py-1 rounded-md bg-black/60 backdrop-blur text-[9px] font-bold uppercase tracking-wider text-white border border-white/10">
+              {track.genre || 'Multitrack'}
+          </span>
+      </div>
+    </div>
 
-      {/* Conteúdo */}
-      <div className="p-5 flex flex-col flex-1 relative z-10">
-          <div className="flex-1 min-w-0 mb-4">
-             <h3 className="text-zinc-200 font-bold text-base leading-tight mb-1 truncate group-hover:text-white transition-colors duration-300" title={track.title}>
-               {track.title}
-             </h3>
-             <p className="text-zinc-600 text-xs flex items-center gap-1 truncate font-medium uppercase tracking-wide group-hover:text-zinc-400 transition-colors">
-               {track.artist}
-             </p>
+    {/* Content */}
+    <div className="p-4 flex-1 flex flex-col justify-between relative z-10">
+      <div>
+        <h3 className={`font-bold text-white leading-tight mb-1 truncate ${featured ? 'text-2xl' : 'text-base'}`}>
+            {track.title}
+        </h3>
+        <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide truncate">
+            {track.artist}
+        </p>
+      </div>
+      
+      {/* Footer Meta */}
+      <div className="mt-4 flex items-center justify-between opacity-50 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
+             <Database size={10} />
+             <span>ID: {track.id.slice(0, 4)}</span>
+          </div>
+          <div className="p-1.5 rounded-full bg-white/5 group-hover:bg-white text-white group-hover:text-black transition-colors">
+             <ArrowLeft className="rotate-[135deg]" size={10} />
           </div>
       </div>
+    </div>
   </div>
 );
 
-// --- TRACK DETAIL VIEW ---
-interface TrackDetailProps {
-    track: Track;
-    onClose: () => void;
-    onDownload: () => void;
-}
+// --- MAIN APP ---
 
-const TrackDetailView: React.FC<TrackDetailProps> = ({ track, onClose, onDownload }) => {
-    const formattedDate = track.createdAt 
-        ? new Date(track.createdAt).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' })
-        : 'Data desconhecida';
-
-    return (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in overflow-y-auto">
-            <div className="absolute inset-0 z-0 overflow-hidden">
-                <img 
-                    src={track.imageUrl} 
-                    className="w-full h-full object-cover blur-[80px] opacity-20 scale-125"
-                    alt=""
-                />
-                <div className="absolute inset-0 bg-black/60"></div>
-            </div>
-            
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 md:p-12 min-h-screen">
-                <button 
-                    onClick={onClose}
-                    className="absolute top-6 left-6 md:top-10 md:left-10 p-3 bg-black/20 backdrop-blur-xl border border-white/10 rounded-full text-white hover:bg-white hover:text-black transition-all group z-20"
-                >
-                    <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-                </button>
-
-                <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                    {/* Imagem Grande */}
-                    <div className="relative aspect-square w-full max-w-md mx-auto rounded-3xl overflow-hidden shadow-[0_0_100px_-20px_rgba(255,255,255,0.1)] ring-1 ring-white/10 group">
-                         <img 
-                            src={track.imageUrl} 
-                            alt={track.title} 
-                            className="w-full h-full object-cover"
-                         />
-                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                    </div>
-
-                    {/* Informações */}
-                    <div className="flex flex-col justify-center text-center md:text-left space-y-8">
-                        <div>
-                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-6">
-                                <Music size={12} />
-                                <span>Multitrack</span>
-                             </div>
-                             <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-2 tracking-tight">
-                                {track.title}
-                             </h1>
-                             <h2 className="text-xl md:text-2xl text-zinc-400 font-medium">
-                                {track.artist}
-                             </h2>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 text-sm max-w-md mx-auto md:mx-0">
-                            <div className="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col gap-1">
-                                <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2 justify-center md:justify-start">
-                                   <Calendar size={12} /> Data
-                                </span>
-                                <span className="text-zinc-300 font-mono">{formattedDate}</span>
-                            </div>
-                             <div className="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col gap-1">
-                                <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2 justify-center md:justify-start">
-                                   <TrendingUp size={12} /> Buscas
-                                </span>
-                                <span className="text-zinc-300 font-mono">{track.searchCount || 0}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-4 max-w-md mx-auto md:mx-0 w-full">
-                            <button 
-                                onClick={onDownload}
-                                className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-5 px-8 rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] group"
-                            >
-                                <Download className="group-hover:animate-bounce" size={24} />
-                                <span className="tracking-widest">BAIXAR AGORA</span>
-                            </button>
-                            
-                            {/* Info de segurança */}
-                            <p className="text-[10px] text-zinc-500 text-center md:text-left max-w-xs mx-auto md:mx-0 leading-relaxed">
-                                Ao baixar, você será redirecionado para o servidor externo onde o arquivo está hospedado.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- MAIN APP COMPONENT ---
 const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => {
-  const [searchTerm, setSearchTerm] = useState('');
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isGuest, setIsGuest] = useState(true);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('Todos');
 
-  // Verifica se é Admin
-  useEffect(() => {
-    if (user && user.email) {
-        setIsGuest(false);
-        const check = ADMIN_EMAILS.some(email => user.email.includes(email) || email === user.email);
-        setIsAdmin(check);
-    } else {
-        setIsGuest(true);
-        setIsAdmin(false);
-    }
-  }, [user]);
+  // Computed state
+  const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email);
 
-  // Carrega Tracks
   useEffect(() => {
     const unsubscribe = listenToTracks((data) => {
-        setTracks(data);
+      setTracks(data);
     });
     return () => unsubscribe();
   }, []);
 
-  // Filter Logic
-  const filteredTracks = tracks.filter(track => {
-    const searchLower = normalizeText(searchTerm);
-    return (
-      normalizeText(track.title).includes(searchLower) ||
-      normalizeText(track.artist).includes(searchLower)
-    );
-  });
+  useEffect(() => {
+    let result = tracks;
 
-  const handleDownload = async (track: Track) => {
-      if (!track.downloadUrl) {
-          alert("Erro: Link de download não disponível.");
-          return;
-      }
-      // Analytics
-      incrementSearchCountRemote(track.id);
-      // Open Link
-      window.open(track.downloadUrl, '_blank');
+    // Filter by category
+    if (activeFilter !== 'Todos') {
+        result = result.filter(t => (t.genre || 'Worship') === activeFilter);
+    }
+
+    // Filter by search
+    if (searchQuery.trim()) {
+        const q = normalizeText(searchQuery);
+        result = result.filter(track => 
+            normalizeText(track.title).includes(q) || 
+            normalizeText(track.artist).includes(q)
+        );
+    }
+    
+    setFilteredTracks(result);
+  }, [searchQuery, tracks, activeFilter]);
+
+  const handleDownload = async () => {
+    if (!selectedTrack) return;
+    
+    // Simula analytics/contador
+    incrementSearchCountRemote(selectedTrack.id);
+    
+    if (selectedTrack.downloadUrl) {
+        window.open(selectedTrack.downloadUrl, '_blank');
+    } else {
+        alert("Link indisponível no momento.");
+    }
   };
 
+  const categories = ['Todos', 'Worship', 'Pop', 'Rock', 'Hino'];
+
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden font-sans selection:bg-white/20">
-      
+    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black font-sans">
       <InteractiveBackground />
-
+      
       {/* --- HEADER --- */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-black/50 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
-            
-            {/* Logo */}
-            <div className="flex-shrink-0 cursor-pointer hover:opacity-80 transition" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
-                <HeaderLogo />
-            </div>
-
-            {/* Search Bar - Desktop */}
-            <div className="hidden md:flex flex-1 max-w-lg relative group">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <Search className="text-zinc-500 group-focus-within:text-white transition-colors" size={18} />
-                </div>
-                <input 
-                    type="text" 
-                    placeholder="Buscar música, artista ou banda..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-full py-3 pl-12 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:bg-zinc-900 focus:border-white/30 focus:ring-1 focus:ring-white/10 transition-all shadow-inner"
-                />
-                 {searchTerm && (
-                    <button 
-                        onClick={() => setSearchTerm('')}
-                        className="absolute inset-y-0 right-3 flex items-center text-zinc-500 hover:text-white"
-                    >
-                        <X size={16} />
-                    </button>
-                )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-                {isAdmin && (
-                    <button 
-                        onClick={() => setShowAdmin(true)}
-                        className="hidden md:flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-zinc-800 hover:text-white transition-colors"
-                    >
-                        <LayoutDashboard size={14} />
-                        <span>Painel</span>
-                    </button>
-                )}
-                
-                {isGuest ? (
+      <header className="fixed top-0 w-full z-40 bg-black/80 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
+          
+          {/* Brand */}
+          <div className="flex items-center gap-12">
+              <HeaderLogo />
+              
+              {/* Desktop Nav */}
+              <nav className="hidden md:flex items-center gap-6">
+                 {categories.map(cat => (
                      <button 
-                        onClick={onLoginRequest}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-transform active:scale-95 shadow-lg shadow-white/10"
-                    >
-                        <LogIn size={16} />
-                        <span className="hidden sm:inline">Entrar</span>
-                    </button>
-                ) : (
+                        key={cat}
+                        onClick={() => setActiveFilter(cat)}
+                        className={`text-xs font-bold uppercase tracking-widest transition-all hover:text-white ${activeFilter === cat ? 'text-white' : 'text-zinc-600'}`}
+                     >
+                        {cat}
+                     </button>
+                 ))}
+              </nav>
+          </div>
+
+          {/* User / Actions */}
+          <div className="flex items-center gap-4">
+             {user ? (
+                <div className="flex items-center gap-4 pl-4 border-l border-zinc-800">
+                    {isAdmin && (
+                        <button 
+                            onClick={() => setIsAdminOpen(true)}
+                            className="p-2 text-zinc-400 hover:text-white transition hover:bg-zinc-800 rounded-lg"
+                            title="Admin Panel"
+                        >
+                            <LayoutDashboard size={20} />
+                        </button>
+                    )}
+                    <div className="flex items-center gap-3">
+                        <div className="text-right hidden sm:block">
+                            <div className="text-xs font-bold text-white">{user.displayName}</div>
+                            <div className="text-[9px] text-zinc-500 font-mono">PRO MEMBER</div>
+                        </div>
+                        <img 
+                            src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`} 
+                            className="w-9 h-9 rounded-full border border-zinc-700 bg-zinc-800"
+                            alt="User"
+                        />
+                    </div>
                     <button 
                         onClick={onLogout}
-                        className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-950/30 hover:border-red-900/50 transition-all"
-                        title="Sair"
+                        className="p-2 text-zinc-500 hover:text-red-400 transition"
                     >
                         <LogOut size={18} />
                     </button>
-                )}
-            </div>
-        </div>
-
-        {/* Search Bar - Mobile */}
-        <div className="md:hidden px-4 pb-4">
-             <div className="relative">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <Search className="text-zinc-500" size={18} />
                 </div>
-                <input 
-                    type="text" 
-                    placeholder="Buscar música..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-all"
-                />
-            </div>
+             ) : (
+                <button 
+                    onClick={onLoginRequest}
+                    className="flex items-center gap-2 bg-white text-black px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition"
+                >
+                    <LogIn size={14} /> Entrar
+                </button>
+             )}
+          </div>
         </div>
       </header>
 
-      {/* --- CONTENT --- */}
-      <main className="pt-36 md:pt-32 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative z-10">
-         
-         {/* Welcome / Stats Area */}
-         {!searchTerm && (
-             <div className="mb-12 animate-fade-in">
-                 <h1 className="text-3xl md:text-5xl font-black text-white mb-2 tracking-tight">
-                    {isGuest ? 'Bem-vindo.' : `Olá, ${user?.displayName?.split(' ')[0] || 'Visitante'}.`}
-                 </h1>
-                 <p className="text-zinc-400 text-lg">
-                    {tracks.length > 0 ? `${tracks.length} multitracks disponíveis para você.` : 'Carregando biblioteca...'}
-                 </p>
-             </div>
-         )}
+      {/* --- MAIN CONTENT --- */}
+      <main className="pt-28 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative z-10">
+        
+        {/* Search Hero */}
+        <div className="mb-12 flex flex-col md:flex-row items-end justify-between gap-6">
+            <div className="w-full md:w-2/3 lg:w-1/2">
+                <h1 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">
+                    Encontre sua <br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-600">Próxima Multitrack.</span>
+                </h1>
+                
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Search className="text-zinc-500 group-focus-within:text-white transition-colors" size={20} />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Buscar por música, artista ou álbum..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-zinc-900/50 backdrop-blur border border-white/10 rounded-2xl py-5 pl-12 pr-6 text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-zinc-900 transition-all text-sm md:text-base shadow-xl"
+                    />
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery('')}
+                            className="absolute inset-y-0 right-4 flex items-center text-zinc-500 hover:text-white"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+            </div>
 
-         {/* Results Grid */}
-         {filteredTracks.length > 0 ? (
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                 {filteredTracks.map((track, idx) => (
-                     <TrackCard 
+            {/* Stats / Info */}
+            <div className="hidden lg:flex gap-8 pb-2">
+                <div>
+                    <div className="text-3xl font-black text-white">{tracks.length}</div>
+                    <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <Music size={10} /> Tracks Disponíveis
+                    </div>
+                </div>
+                <div>
+                    <div className="text-3xl font-black text-white">24h</div>
+                    <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles size={10} /> Atualização Diária
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* Filters (Mobile) */}
+        <div className="md:hidden flex gap-2 overflow-x-auto pb-6 mb-2 no-scrollbar">
+             {categories.map(cat => (
+                 <button 
+                    key={cat}
+                    onClick={() => setActiveFilter(cat)}
+                    className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold border transition-all ${activeFilter === cat ? 'bg-white text-black border-white' : 'bg-zinc-900 text-zinc-400 border-zinc-800'}`}
+                 >
+                    {cat}
+                 </button>
+             ))}
+        </div>
+
+        {/* Results Grid */}
+        {filteredTracks.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                {filteredTracks.map((track, idx) => (
+                    <TrackCard 
                         key={track.id} 
                         track={track} 
-                        onClick={setSelectedTrack} 
+                        onClick={(t) => setSelectedTrack(t)}
                         index={idx}
-                     />
-                 ))}
-             </div>
-         ) : (
-             <div className="flex flex-col items-center justify-center py-20 opacity-50">
-                 <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-4">
-                     <Search size={32} className="text-zinc-600" />
-                 </div>
-                 <p className="text-zinc-500 font-medium">Nenhuma música encontrada.</p>
-             </div>
-         )}
+                    />
+                ))}
+            </div>
+        ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
+                <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
+                    <Filter className="text-zinc-600" size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Nenhum resultado</h3>
+                <p className="text-zinc-500 max-w-xs mx-auto text-sm">Tente buscar por outro termo ou limpe os filtros para ver todas as músicas.</p>
+                <button 
+                    onClick={() => { setSearchQuery(''); setActiveFilter('Todos'); }}
+                    className="mt-6 text-xs font-bold uppercase tracking-widest text-white border-b border-white pb-1 hover:text-zinc-300 hover:border-zinc-300 transition"
+                >
+                    Limpar Filtros
+                </button>
+            </div>
+        )}
 
       </main>
 
-      {/* --- MODALS --- */}
-      
-      {/* Track Details */}
+      {/* Admin Panel Modal */}
+      {isAdminOpen && user && (
+          <AdminPanel 
+            user={user} 
+            onClose={() => setIsAdminOpen(false)} 
+            onUpdate={() => {}}
+          />
+      )}
+
+      {/* Track Detail Modal */}
       {selectedTrack && (
           <TrackDetailView 
              track={selectedTrack} 
              onClose={() => setSelectedTrack(null)} 
-             onDownload={() => handleDownload(selectedTrack)}
-          />
-      )}
-
-      {/* Admin Panel */}
-      {showAdmin && user && (
-          <AdminPanel 
-             user={user} 
-             onClose={() => setShowAdmin(false)}
-             onUpdate={() => {
-                 // Refresh handled by listeners
-                 setShowAdmin(false);
-             }}
+             onDownload={handleDownload}
           />
       )}
 
