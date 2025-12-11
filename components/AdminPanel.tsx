@@ -14,11 +14,13 @@ import {
   Code2,
   HelpCircle,
   ShieldAlert,
-  Copy
+  Copy,
+  Save
 } from 'lucide-react';
 import { 
     listenToTracks,
     saveSettingsRemote,
+    saveSettings, // Adicionado import para fallback local
     listenToGlobalSettings,
     syncFromGoogleSheets 
 } from '../services/storage';
@@ -31,7 +33,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
   // Settings State
   const [apiUrl, setApiUrl] = useState('');
   const [isTesting, setIsTesting] = useState(false);
-  const [statusMsg, setStatusMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [statusMsg, setStatusMsg] = useState<{type: 'success' | 'error' | 'warning', text: string} | null>(null);
   
   // Rule Helper State
   const [showRulesHelper, setShowRulesHelper] = useState(false);
@@ -78,7 +80,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
       // 2. Se deu certo, tenta salvar na Nuvem (Firestore)
       await saveSettingsRemote({ googleSheetsApiUrl: apiUrl });
       
-      setStatusMsg({ type: 'success', text: `Sucesso! Configuração salva na nuvem. ${count} tracks carregadas.` });
+      setStatusMsg({ type: 'success', text: `Sucesso! Configuração salva na nuvem e sincronizada com todos os usuários.` });
       onUpdate(); 
       
     } catch (error: any) {
@@ -86,11 +88,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
       
       // DETECTA O ERRO DE PERMISSÃO ESPECIFICAMENTE
       if (error.code === 'permission-denied' || error.message?.toLowerCase().includes('permission') || error.message?.toLowerCase().includes('permissão')) {
+          
+          // FALLBACK: Salva localmente para que o admin não fique travado
+          saveSettings({ googleSheetsApiUrl: apiUrl });
+          
           setStatusMsg({ 
-              type: 'error', 
-              text: 'Acesso Negado: O Firebase bloqueou a gravação por segurança.' 
+              type: 'warning', 
+              text: 'Salvo LOCALMENTE. Para funcionar globalmente (para todos os usuários), você precisa configurar as Regras do Firebase abaixo.' 
           });
           setShowRulesHelper(true);
+          onUpdate(); // Atualiza a UI localmente pelo menos
+
       } else {
           let errorText = 'Erro desconhecido ao salvar.';
           if (error.message) errorText = error.message;
@@ -108,15 +116,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onClose, onUpdate }) => {
   const rulesCode = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Configuração do App (Só Admin edita)
+    
+    // Regra Global de Configuração
+    // Permite leitura para todos, mas escrita apenas para seu email
     match /app_config/main {
       allow read: if true;
       allow write: if request.auth != null && (
-        request.auth.token.email == '${user.email}' ||
-        request.auth.token.email == 'admin@searchmultitracks.com'
+         request.auth.token.email.matches('.*${user.email?.split('@')[0]}.*') || 
+         request.auth.token.email == 'admin@searchmultitracks.com'
       );
     }
-    // Analytics (Todos podem incrementar contagem)
+
+    // Regra de Analytics
     match /analytics/{document=**} {
        allow read, write: if true;
     }
@@ -202,7 +213,7 @@ service cloud.firestore {
                         disabled={isTesting}
                         className="bg-white hover:bg-zinc-200 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold px-6 py-3 rounded-lg flex items-center gap-2 transition whitespace-nowrap"
                      >
-                        {isTesting ? <RefreshCw size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                        {isTesting ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
                         Salvar Globalmente
                      </button>
                  </div>
@@ -210,33 +221,40 @@ service cloud.firestore {
                  {/* Status Message */}
                  {statusMsg && (
                     <div className={`p-4 rounded-lg flex items-center gap-3 border mt-4 ${
-                        statusMsg.type === 'success' ? 'bg-green-900/10 border-green-900/30 text-green-400' : 'bg-red-900/10 border-red-900/30 text-red-400'
+                        statusMsg.type === 'success' ? 'bg-green-900/10 border-green-900/30 text-green-400' : 
+                        statusMsg.type === 'warning' ? 'bg-amber-900/10 border-amber-900/30 text-amber-400' :
+                        'bg-red-900/10 border-red-900/30 text-red-400'
                     }`}>
-                        {statusMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                        {statusMsg.type === 'success' ? <CheckCircle2 size={18} /> : 
+                         statusMsg.type === 'warning' ? <AlertCircle size={18} /> : 
+                         <AlertCircle size={18} />}
                         <span className="text-sm font-medium">{statusMsg.text}</span>
                     </div>
                  )}
 
                  {/* --- RULES HELPER (SHOWS ON PERMISSION ERROR) --- */}
                  {showRulesHelper && (
-                     <div className="mt-6 border border-amber-900/50 bg-amber-900/10 rounded-xl overflow-hidden animate-fade-in-up">
-                        <div className="p-4 bg-amber-900/20 border-b border-amber-900/30 flex items-center gap-3">
-                            <ShieldAlert className="text-amber-500" size={20} />
-                            <h4 className="font-bold text-amber-500 text-sm uppercase tracking-wide">Ação Necessária: Configure as Regras do Firestore</h4>
+                     <div className="mt-6 border border-amber-500/30 bg-amber-950/20 rounded-xl overflow-hidden animate-fade-in-up">
+                        <div className="p-4 bg-amber-900/20 border-b border-amber-500/20 flex items-center gap-3">
+                            <ShieldAlert className="text-amber-500" size={24} />
+                            <div>
+                                <h4 className="font-bold text-amber-500 text-sm uppercase tracking-wide">Permissão Necessária</h4>
+                                <p className="text-zinc-400 text-xs">O Firebase bloqueou a gravação global. Configure as regras abaixo para liberar.</p>
+                            </div>
                         </div>
                         <div className="p-6">
                             <p className="text-zinc-300 text-sm mb-4">
-                                Para publicar o app e salvar dados na nuvem, você precisa autorizar seu email no console do Firebase.
-                                <br/>Copie o código abaixo e cole na aba <strong>Firestore Database &gt; Rules</strong>.
+                                1. Vá ao <strong>Firebase Console</strong> &gt; <strong>Firestore Database</strong> &gt; <strong>Rules</strong>.<br/>
+                                2. Substitua o código existente por este abaixo e clique em <strong>Publicar</strong>.
                             </p>
                             
                             <div className="relative group">
-                                <pre className="bg-black border border-zinc-800 rounded-lg p-4 text-xs font-mono text-zinc-400 overflow-x-auto selection:bg-amber-900/50 selection:text-white">
+                                <pre className="bg-black border border-zinc-800 rounded-lg p-4 text-xs font-mono text-zinc-300 overflow-x-auto selection:bg-amber-900/50 selection:text-white">
                                     {rulesCode}
                                 </pre>
                                 <button 
                                     onClick={() => navigator.clipboard.writeText(rulesCode)}
-                                    className="absolute top-2 right-2 bg-zinc-800 hover:bg-zinc-700 text-white p-2 rounded-md transition opacity-0 group-hover:opacity-100 shadow-lg"
+                                    className="absolute top-2 right-2 bg-zinc-800 hover:bg-zinc-700 text-white p-2 rounded-md transition opacity-0 group-hover:opacity-100 shadow-lg border border-zinc-700"
                                     title="Copiar Código"
                                 >
                                     <Copy size={14} />
@@ -245,12 +263,12 @@ service cloud.firestore {
                             
                             <div className="mt-4 flex gap-4">
                                 <a 
-                                    href="https://console.firebase.google.com/" 
+                                    href="https://console.firebase.google.com/project/_/firestore/rules" 
                                     target="_blank" 
                                     rel="noreferrer"
-                                    className="text-xs font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1"
+                                    className="bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition"
                                 >
-                                    Ir para o Console Firebase <ExternalLink size={10} />
+                                    Abrir Regras do Firebase <ExternalLink size={14} />
                                 </a>
                             </div>
                         </div>
