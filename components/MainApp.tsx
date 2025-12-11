@@ -22,7 +22,8 @@ import InteractiveBackground from './InteractiveBackground';
 
 // --- CONFIGURAÇÃO DE SEGURANÇA ---
 const ADMIN_EMAILS = [
-    'admin@searchmultitracks.com', 
+    'admin@searchmultitracks.com',
+    'lucasconstantino8401@gmail.com'
 ];
 
 // Função auxiliar para normalizar texto (remove acentos e deixa minúsculo)
