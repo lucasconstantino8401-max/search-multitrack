@@ -220,7 +220,6 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('Todos');
 
   // Computed state
   const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
@@ -236,11 +235,6 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
   useEffect(() => {
     let result = tracks;
 
-    // Filter by category
-    if (activeFilter !== 'Todos') {
-        result = result.filter(t => (t.genre || 'Worship') === activeFilter);
-    }
-
     // Filter by search
     if (searchQuery.trim()) {
         const q = normalizeText(searchQuery);
@@ -251,7 +245,7 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
     }
     
     setFilteredTracks(result);
-  }, [searchQuery, tracks, activeFilter]);
+  }, [searchQuery, tracks]);
 
   const handleDownload = async () => {
     if (!selectedTrack) return;
@@ -266,8 +260,6 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
     }
   };
 
-  const categories = ['Todos', 'Worship', 'Pop', 'Rock', 'Hino'];
-
   return (
     <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black font-sans">
       <InteractiveBackground />
@@ -279,19 +271,6 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
           {/* Brand */}
           <div className="flex items-center gap-12">
               <HeaderLogo />
-              
-              {/* Desktop Nav */}
-              <nav className="hidden md:flex items-center gap-6">
-                 {categories.map(cat => (
-                     <button 
-                        key={cat}
-                        onClick={() => setActiveFilter(cat)}
-                        className={`text-xs font-bold uppercase tracking-widest transition-all hover:text-white ${activeFilter === cat ? 'text-white' : 'text-zinc-600'}`}
-                     >
-                        {cat}
-                     </button>
-                 ))}
-              </nav>
           </div>
 
           {/* User / Actions */}
@@ -387,19 +366,6 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
             </div>
         </div>
 
-        {/* Filters (Mobile) */}
-        <div className="md:hidden flex gap-2 overflow-x-auto pb-6 mb-2 no-scrollbar">
-             {categories.map(cat => (
-                 <button 
-                    key={cat}
-                    onClick={() => setActiveFilter(cat)}
-                    className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold border transition-all ${activeFilter === cat ? 'bg-white text-black border-white' : 'bg-zinc-900 text-zinc-400 border-zinc-800'}`}
-                 >
-                    {cat}
-                 </button>
-             ))}
-        </div>
-
         {/* Results Grid */}
         {filteredTracks.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
@@ -418,12 +384,12 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
                     <Filter className="text-zinc-600" size={32} />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">Nenhum resultado</h3>
-                <p className="text-zinc-500 max-w-xs mx-auto text-sm">Tente buscar por outro termo ou limpe os filtros para ver todas as músicas.</p>
+                <p className="text-zinc-500 max-w-xs mx-auto text-sm">Tente buscar por outro termo.</p>
                 <button 
-                    onClick={() => { setSearchQuery(''); setActiveFilter('Todos'); }}
+                    onClick={() => { setSearchQuery(''); }}
                     className="mt-6 text-xs font-bold uppercase tracking-widest text-white border-b border-white pb-1 hover:text-zinc-300 hover:border-zinc-300 transition"
                 >
-                    Limpar Filtros
+                    Limpar Busca
                 </button>
             </div>
         )}
