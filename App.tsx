@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import SplashScreen from './components/SplashScreen';
 import LoginScreen from './components/LoginScreen';
 import MainApp from './components/MainApp';
 import { getCurrentUser, logoutUser } from './services/storage';
@@ -8,9 +7,7 @@ import type { User } from './types';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [showSplash, setShowSplash] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     // Verifica sessão local
@@ -23,7 +20,6 @@ export default function App() {
 
   const handleLogin = (newUser: User) => {
     setUser(newUser);
-    setIsLoggingIn(false);
   };
 
   const handleLogout = async () => {
@@ -32,34 +28,31 @@ export default function App() {
     setUser(null);
   };
 
-  if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
-  }
-
   if (loading) {
+    // Loader minimalista e rápido enquanto verifica a sessão (fração de segundo)
     return (
         <div className="min-h-screen bg-black flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-zinc-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500"></div>
         </div>
     );
   }
 
-  // Se o usuário solicitou login explicitamente
-  if (isLoggingIn) {
+  // Lógica de Proteção: Se não houver usuário, mostra Login obrigatório IMEDIATAMENTE.
+  // A Splash Screen foi removida para agilizar o acesso ao login.
+  if (!user) {
       return (
         <LoginScreen 
             onLogin={handleLogin} 
-            onCancel={() => setIsLoggingIn(false)} 
         />
       );
   }
 
-  // Renderiza o App Principal (pode ser com user logado ou null/guest)
+  // Renderiza o App Principal apenas se houver usuário
   return (
     <MainApp 
         user={user} 
         onLogout={handleLogout} 
-        onLoginRequest={() => setIsLoggingIn(true)} 
+        onLoginRequest={() => {}} 
     />
   );
 }

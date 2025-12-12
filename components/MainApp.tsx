@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, 
   LogOut, 
@@ -14,7 +14,8 @@ import {
   Calendar, 
   Music,
   Share2,
-  LogIn
+  LogIn,
+  Activity
 } from 'lucide-react';
 import { listenToTracks, incrementSearchCountRemote } from '../services/storage';
 import type { MainAppProps, Track } from '../types';
@@ -104,8 +105,8 @@ const TrackDetailView: React.FC<TrackDetailViewProps> = ({ track, onClose, onDow
               
               <div className="flex gap-4 mb-8">
                   <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase font-bold tracking-wider bg-zinc-900 px-3 py-2 rounded-lg">
-                      <Calendar size={14} />
-                      <span>{track.createdAt ? new Date(track.createdAt).getFullYear() : '2024'}</span>
+                      <Activity size={14} className="text-red-500" />
+                      <span>{track.searchCount > 0 ? `+${track.searchCount} Views` : 'Trending'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase font-bold tracking-wider bg-zinc-900 px-3 py-2 rounded-lg">
                       <Music size={14} />
@@ -140,9 +141,10 @@ interface TrackCardProps {
   featured?: boolean;
   onClick: (track: Track) => void;
   index?: number;
+  rank?: number;
 }
 
-const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick, index = 0 }) => (
+const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick, index = 0, rank }) => (
   <div 
       onClick={() => onClick(track)}
       className={`
@@ -167,7 +169,21 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
       />
       <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
       
-      {/* Play/Action Overlay Button - RESTORED BEHAVIOR */}
+      {/* Rank Badge (If provided) */}
+      {rank && rank <= 3 && (
+          <div className="absolute top-0 right-0 p-3 z-20">
+              <div className={`
+                 w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-lg
+                 ${rank === 1 ? 'bg-yellow-500 text-black' : 
+                   rank === 2 ? 'bg-zinc-300 text-black' : 
+                   'bg-orange-700 text-white'}
+              `}>
+                  {rank}
+              </div>
+          </div>
+      )}
+
+      {/* Play/Action Overlay Button */}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/20 backdrop-blur-[2px]">
           <button 
              className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center transform scale-50 group-hover:scale-100 transition-all duration-300 hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.3)]"
@@ -202,8 +218,17 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
       {/* Footer Meta */}
       <div className="mt-4 flex items-center justify-between opacity-50 group-hover:opacity-100 transition-opacity">
           <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
-             <Database size={10} />
-             <span>ID: {track.id.slice(0, 4)}</span>
+             {rank ? (
+                 <>
+                   <TrendingUp size={10} className="text-red-500" />
+                   <span className="text-red-400 font-bold">EM ALTA</span>
+                 </>
+             ) : (
+                 <>
+                    <Database size={10} />
+                    <span>ID: {track.id.slice(0, 4)}</span>
+                 </>
+             )}
           </div>
           <div className="p-1.5 rounded-full bg-white/5 group-hover:bg-white text-white group-hover:text-black transition-colors">
              <ArrowLeft className="rotate-[135deg]" size={10} />
@@ -223,6 +248,15 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
 
   // Computed state
   const [filteredTracks, setFilteredTracks] = useState<Track[]>([]);
+  
+  // Trending State (Calculated "Real-time" based on loaded data)
+  const trendingTracks = useMemo(() => {
+      // Create a copy and sort by searchCount descending
+      return [...tracks]
+        .sort((a, b) => (b.searchCount || 0) - (a.searchCount || 0))
+        .slice(0, 10); // Take top 10
+  }, [tracks]);
+
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);
 
   useEffect(() => {
@@ -358,40 +392,91 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
                     </div>
                 </div>
                 <div>
-                    <div className="text-3xl font-black text-white">24h</div>
+                    <div className="text-3xl font-black text-white flex items-center gap-2">
+                         <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                         24h
+                    </div>
                     <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <Sparkles size={10} /> Atualização Diária
+                        <Activity size={10} /> Monitoramento Real-time
                     </div>
                 </div>
             </div>
         </div>
 
-        {/* Results Grid */}
-        {filteredTracks.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {filteredTracks.map((track, idx) => (
-                    <TrackCard 
-                        key={track.id} 
-                        track={track} 
-                        onClick={(t) => setSelectedTrack(t)}
-                        index={idx}
-                    />
-                ))}
-            </div>
-        ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
-                <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
-                    <Filter className="text-zinc-600" size={32} />
+        {/* LOGIC: IF SEARCHING -> SHOW RESULTS. IF EMPTY -> SHOW TRENDING */}
+        
+        {searchQuery.trim() ? (
+            // --- SEARCH RESULTS ---
+            <>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Search size={20} className="text-zinc-400" />
+                        Resultados da busca
+                    </h2>
+                    <span className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
+                        {filteredTracks.length} Encontrados
+                    </span>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Nenhum resultado</h3>
-                <p className="text-zinc-500 max-w-xs mx-auto text-sm">Tente buscar por outro termo.</p>
-                <button 
-                    onClick={() => { setSearchQuery(''); }}
-                    className="mt-6 text-xs font-bold uppercase tracking-widest text-white border-b border-white pb-1 hover:text-zinc-300 hover:border-zinc-300 transition"
-                >
-                    Limpar Busca
-                </button>
-            </div>
+                
+                {filteredTracks.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                        {filteredTracks.map((track, idx) => (
+                            <TrackCard 
+                                key={track.id} 
+                                track={track} 
+                                onClick={(t) => setSelectedTrack(t)}
+                                index={idx}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
+                        <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
+                            <Filter className="text-zinc-600" size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Nenhum resultado</h3>
+                        <p className="text-zinc-500 max-w-xs mx-auto text-sm">Tente buscar por outro termo.</p>
+                        <button 
+                            onClick={() => { setSearchQuery(''); }}
+                            className="mt-6 text-xs font-bold uppercase tracking-widest text-white border-b border-white pb-1 hover:text-zinc-300 hover:border-zinc-300 transition"
+                        >
+                            Limpar Busca
+                        </button>
+                    </div>
+                )}
+            </>
+        ) : (
+            // --- TRENDING / RECOMMENDATIONS (EMPTY SEARCH) ---
+            <>
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-red-500/10 rounded-lg">
+                        <TrendingUp className="text-red-500" size={24} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">Em Alta (24h)</h2>
+                        <p className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Mais pesquisadas e baixadas</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                    {trendingTracks.length > 0 ? (
+                        trendingTracks.map((track, idx) => (
+                            <TrackCard 
+                                key={track.id} 
+                                track={track} 
+                                onClick={(t) => setSelectedTrack(t)}
+                                index={idx}
+                                rank={idx + 1} // Pass ranking for badge
+                            />
+                        ))
+                    ) : (
+                        // Skeleton / Loading State if no tracks
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="h-64 rounded-2xl bg-zinc-900/50 animate-pulse"></div>
+                        ))
+                    )}
+                </div>
+            </>
         )}
 
       </main>
