@@ -15,7 +15,9 @@ import {
   Music,
   Share2,
   LogIn,
-  Activity
+  Activity,
+  Copy,
+  Check
 } from 'lucide-react';
 import { listenToTracks, incrementSearchCountRemote } from '../services/storage';
 import type { MainAppProps, Track } from '../types';
@@ -34,6 +36,20 @@ const normalizeText = (text: string) => {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+};
+
+// Função auxiliar para abrir links de forma segura e limpa
+const openLinkSafely = (url: string) => {
+    // Cria um elemento <a> temporário para simular um clique genuíno
+    // Isso ajuda com bloqueadores de popup e remove o referrer (noreferrer)
+    // que pode causar erros em alguns servidores de download (como erro 31362)
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer'; 
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 // Componente de Logo SVG Reutilizável
@@ -67,6 +83,16 @@ interface TrackDetailViewProps {
 }
 
 const TrackDetailView: React.FC<TrackDetailViewProps> = ({ track, onClose, onDownload }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+      if (track.downloadUrl) {
+          navigator.clipboard.writeText(track.downloadUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+      }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
        <div 
@@ -124,8 +150,15 @@ const TrackDetailView: React.FC<TrackDetailViewProps> = ({ track, onClose, onDow
                   </button>
                   
                   <div className="flex gap-3">
+                      <button 
+                          onClick={handleCopyLink}
+                          className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all text-sm border border-zinc-800"
+                      >
+                          {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                          {copied ? "COPIADO!" : "Copiar Link"}
+                      </button>
                       <button className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all text-sm border border-zinc-800">
-                          <Share2 size={16} /> Compartilhar
+                          <Share2 size={16} /> Share
                       </button>
                   </div>
               </div>
@@ -189,7 +222,7 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, featured = false, onClick,
              className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center transform scale-50 group-hover:scale-100 transition-all duration-300 hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.3)]"
              onClick={(e) => {
                  e.stopPropagation();
-                 if(track.downloadUrl) window.open(track.downloadUrl, '_blank');
+                 if(track.downloadUrl) openLinkSafely(track.downloadUrl);
              }}
           >
               <Play fill="currentColor" className="ml-1" size={24} />
@@ -288,7 +321,8 @@ const MainApp: React.FC<MainAppProps> = ({ user, onLogout, onLoginRequest }) => 
     incrementSearchCountRemote(selectedTrack.id);
     
     if (selectedTrack.downloadUrl) {
-        window.open(selectedTrack.downloadUrl, '_blank');
+        // Usa a nova função segura de abertura
+        openLinkSafely(selectedTrack.downloadUrl);
     } else {
         alert("Link indisponível no momento.");
     }
